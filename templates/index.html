@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Utah Ski Terrain Tracker</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1923;
+      color: #e8edf2;
+      min-height: 100vh;
+      padding: 24px 16px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 28px;
+    }
+
+    header h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #fff;
+    }
+
+    header p {
+      color: #7a8fa6;
+      font-size: 0.9rem;
+      margin-top: 4px;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 32px;
+      flex-wrap: wrap;
+    }
+
+    .controls label {
+      font-size: 0.9rem;
+      color: #7a8fa6;
+    }
+
+    .controls input[type="date"] {
+      background: #1e2d3d;
+      border: 1px solid #2d4155;
+      color: #e8edf2;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    .controls input[type="date"]:focus {
+      outline: none;
+      border-color: #4a9eff;
+    }
+
+    .btn-today {
+      background: #1e2d3d;
+      border: 1px solid #2d4155;
+      color: #7a8fa6;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .btn-today:hover {
+      border-color: #4a9eff;
+      color: #4a9eff;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .resort-card {
+      background: #1a2535;
+      border: 1px solid #2d4155;
+      border-radius: 14px;
+      overflow: hidden;
+    }
+
+    .resort-header {
+      padding: 16px 20px 14px;
+      border-bottom: 1px solid #2d4155;
+    }
+
+    .resort-name {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .snow-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 6px;
+      font-size: 0.82rem;
+      color: #7a8fa6;
+    }
+
+    .snow-badge .amount {
+      color: #4a9eff;
+      font-weight: 600;
+    }
+
+    .snow-badge.has-snow .amount {
+      color: #60c8ff;
+    }
+
+    .terrain-list {
+      padding: 8px 0;
+    }
+
+    .terrain-row {
+      display: flex;
+      align-items: center;
+      padding: 10px 20px;
+      border-bottom: 1px solid #1e2d3d;
+      gap: 10px;
+      transition: background 0.1s;
+    }
+
+    .terrain-row:last-child {
+      border-bottom: none;
+    }
+
+    .terrain-row.powder-alert {
+      background: rgba(255, 200, 50, 0.06);
+      border-left: 3px solid #ffb800;
+      padding-left: 17px;
+    }
+
+    .terrain-name {
+      flex: 1;
+      font-size: 0.9rem;
+      color: #c8d8e8;
+    }
+
+    .streak-badge {
+      font-size: 0.75rem;
+      color: #4a6070;
+      white-space: nowrap;
+    }
+
+    .powder-alert .streak-badge {
+      color: #c8900a;
+    }
+
+    .status-pill {
+      font-size: 0.78rem;
+      font-weight: 600;
+      padding: 3px 10px;
+      border-radius: 20px;
+      white-space: nowrap;
+    }
+
+    .status-pill.open {
+      background: rgba(34, 197, 94, 0.15);
+      color: #4ade80;
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+
+    .status-pill.closed {
+      background: rgba(239, 68, 68, 0.1);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+    }
+
+    .status-pill.no-data {
+      background: rgba(100, 116, 139, 0.1);
+      color: #64748b;
+      border: 1px solid rgba(100, 116, 139, 0.2);
+    }
+
+    .powder-icon {
+      font-size: 0.85rem;
+    }
+
+    .no-data-msg {
+      padding: 24px 20px;
+      text-align: center;
+      color: #4a6070;
+      font-size: 0.85rem;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 60px;
+      color: #4a6070;
+      font-size: 0.9rem;
+    }
+
+    .error-msg {
+      text-align: center;
+      padding: 40px;
+      color: #f87171;
+      font-size: 0.85rem;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 40px;
+      color: #344c5c;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⛷️ Utah Ski Terrain Tracker</h1>
+  <p>Powder-hunting intelligence for Snowbird, Solitude, Brighton &amp; Snowbasin</p>
+</header>
+
+<div class="controls">
+  <label for="date-picker">Date:</label>
+  <input type="date" id="date-picker">
+  <button class="btn-today" onclick="setToday()">Today</button>
+</div>
+
+<div class="grid" id="resort-grid">
+  <div class="loading">Loading terrain data…</div>
+</div>
+
+<footer>
+  Updated hourly 9am – 4pm Mountain Time &nbsp;·&nbsp; ⚠️ = Snowed but never opened = potential powder tomorrow
+</footer>
+
+<script>
+  const RESORT_LABELS = {
+    snowbird: 'Snowbird',
+    solitude: 'Solitude',
+    brighton: 'Brighton',
+    snowbasin: 'Snowbasin'
+  };
+
+  const RESORT_ORDER = ['snowbird', 'solitude', 'brighton', 'snowbasin'];
+
+  function formatDate(d) {
+    return d.toISOString().split('T')[0];
+  }
+
+  function setToday() {
+    const today = formatDate(new Date());
+    document.getElementById('date-picker').value = today;
+    loadData(today);
+  }
+
+  function loadData(date) {
+    const grid = document.getElementById('resort-grid');
+    grid.innerHTML = '<div class="loading">Loading terrain data…</div>';
+
+    fetch(`/api/status?date=${date}`)
+      .then(r => r.json())
+      .then(data => renderGrid(data))
+      .catch(() => {
+        grid.innerHTML = '<div class="error-msg">Failed to load data. Make sure the app is running.</div>';
+      });
+  }
+
+  function renderGrid(data) {
+    const grid = document.getElementById('resort-grid');
+    grid.innerHTML = '';
+
+    for (const resortKey of RESORT_ORDER) {
+      const resort = data[resortKey];
+      if (!resort) continue;
+
+      const card = document.createElement('div');
+      card.className = 'resort-card';
+
+      const snow = resort.snow_24hr || 0;
+      const hasSnow = snow > 0;
+
+      card.innerHTML = `
+        <div class="resort-header">
+          <div class="resort-name">${RESORT_LABELS[resortKey] || resortKey}</div>
+          <div class="snow-badge ${hasSnow ? 'has-snow' : ''}">
+            ❄️ 24hr snowfall: <span class="amount">${snow > 0 ? snow + '"' : 'None'}</span>
+          </div>
+        </div>
+        <div class="terrain-list" id="terrain-${resortKey}"></div>
+      `;
+
+      grid.appendChild(card);
+
+      const terrainList = card.querySelector(`#terrain-${resortKey}`);
+      const terrain = resort.terrain || [];
+
+      if (terrain.length === 0) {
+        terrainList.innerHTML = '<div class="no-data-msg">No data for this date</div>';
+        continue;
+      }
+
+      for (const t of terrain) {
+        const row = document.createElement('div');
+
+        // Powder alert: snowed but terrain never opened
+        const isPowderAlert = hasSnow && !t.ever_opened;
+        row.className = 'terrain-row' + (isPowderAlert ? ' powder-alert' : '');
+
+        let pillClass, pillText;
+        if (t.ever_opened === null || t.ever_opened === undefined) {
+          pillClass = 'no-data'; pillText = 'No data';
+        } else if (t.ever_opened) {
+          pillClass = 'open'; pillText = '✓ Opened';
+        } else {
+          pillClass = 'closed'; pillText = '✗ Closed all day';
+        }
+
+        const streakText = (!t.ever_opened && t.closed_streak > 0)
+          ? `${t.closed_streak}d closed`
+          : '';
+
+        row.innerHTML = `
+          ${isPowderAlert ? '<span class="powder-icon">⚠️</span>' : ''}
+          <span class="terrain-name">${t.name}</span>
+          ${streakText ? `<span class="streak-badge">${streakText}</span>` : ''}
+          <span class="status-pill ${pillClass}">${pillText}</span>
+        `;
+
+        terrainList.appendChild(row);
+      }
+    }
+  }
+
+  // Initialize
+  const picker = document.getElementById('date-picker');
+  const today = formatDate(new Date());
+  picker.value = today;
+  picker.max = today;
+
+  picker.addEventListener('change', () => {
+    if (picker.value) loadData(picker.value);
+  });
+
+  loadData(today);
+</script>
+
+</body>
+</html>

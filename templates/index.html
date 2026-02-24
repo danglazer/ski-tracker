@@ -521,7 +521,12 @@
   const RESORT_ORDER = ['snowbird', 'solitude', 'brighton', 'snowbasin'];
 
   function formatDate(d) {
-    return d.toISOString().split('T')[0];
+    // Format date in Mountain Time (America/Denver), not UTC
+    const mtn = new Date(d.toLocaleString('en-US', { timeZone: 'America/Denver' }));
+    const y = mtn.getFullYear();
+    const m = String(mtn.getMonth() + 1).padStart(2, '0');
+    const day = String(mtn.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   }
 
   function setToday() {

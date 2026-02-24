@@ -4,13 +4,135 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Utah Ski Terrain Tracker</title>
+  <script>
+    (function() {
+      var theme = localStorage.getItem('theme') || 'dark';
+      if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    })();
+  </script>
   <style>
+    :root {
+      color-scheme: dark;
+
+      --bg-body: #0f1923;
+      --bg-card: #1a2535;
+      --bg-elevated: #1e2d3d;
+
+      --border: #2d4155;
+      --border-subtle: #1e2d3d;
+
+      --text-heading: #fff;
+      --text-body: #e8edf2;
+      --text-secondary: #7a8fa6;
+      --text-tertiary: #c8d8e8;
+      --text-muted: #4a6070;
+      --text-faint: #344c5c;
+      --text-nodata: #2d4155;
+
+      --accent: #4a9eff;
+      --accent-bright: #60c8ff;
+
+      --open-pill-bg: rgba(34, 197, 94, 0.15);
+      --open-text: #4ade80;
+      --open-pill-border: rgba(34, 197, 94, 0.3);
+      --closed-pill-bg: rgba(239, 68, 68, 0.1);
+      --closed-text: #f87171;
+      --closed-pill-border: rgba(239, 68, 68, 0.2);
+      --nodata-pill-bg: rgba(100, 116, 139, 0.1);
+      --nodata-pill-text: #64748b;
+      --nodata-pill-border: rgba(100, 116, 139, 0.2);
+
+      --powder-bg: rgba(255, 200, 50, 0.06);
+      --powder-border: #ffb800;
+      --powder-text: #c8900a;
+
+      --backdrop: rgba(0, 0, 0, 0.65);
+
+      --cal-open-bg: rgba(34, 197, 94, 0.25);
+      --cal-closed-bg: rgba(239, 68, 68, 0.15);
+      --cal-dot-open: rgba(34, 197, 94, 0.5);
+      --cal-dot-closed: rgba(239, 68, 68, 0.3);
+
+      --snow-light-bg: rgba(74, 158, 255, 0.15);
+      --snow-light-text: #7abfff;
+      --snow-med-bg: rgba(74, 158, 255, 0.30);
+      --snow-med-text: #a0d4ff;
+      --snow-heavy-bg: rgba(96, 200, 255, 0.45);
+      --snow-heavy-text: #fff;
+      --snow-dot: rgba(74, 158, 255, 0.5);
+
+      --cell-open-bg: rgba(34, 197, 94, 0.2);
+      --cell-closed-bg: rgba(239, 68, 68, 0.1);
+      --cell-snow: #60c8ff;
+      --snow-row: #4a9eff;
+
+      --error: #f87171;
+    }
+
+    [data-theme="light"] {
+      color-scheme: light;
+
+      --bg-body: #f5f7fa;
+      --bg-card: #ffffff;
+      --bg-elevated: #f1f5f9;
+
+      --border: #e2e8f0;
+      --border-subtle: #eef2f6;
+
+      --text-heading: #0f172a;
+      --text-body: #334155;
+      --text-secondary: #64748b;
+      --text-tertiary: #475569;
+      --text-muted: #94a3b8;
+      --text-faint: #94a3b8;
+      --text-nodata: #cbd5e1;
+
+      --accent: #2563eb;
+      --accent-bright: #3b82f6;
+
+      --open-pill-bg: rgba(34, 197, 94, 0.1);
+      --open-text: #16a34a;
+      --open-pill-border: rgba(34, 197, 94, 0.25);
+      --closed-pill-bg: rgba(239, 68, 68, 0.08);
+      --closed-text: #dc2626;
+      --closed-pill-border: rgba(239, 68, 68, 0.15);
+      --nodata-pill-bg: rgba(100, 116, 139, 0.06);
+      --nodata-pill-text: #94a3b8;
+      --nodata-pill-border: rgba(100, 116, 139, 0.15);
+
+      --powder-bg: rgba(251, 191, 36, 0.1);
+      --powder-border: #f59e0b;
+      --powder-text: #92400e;
+
+      --backdrop: rgba(0, 0, 0, 0.35);
+
+      --cal-open-bg: rgba(34, 197, 94, 0.18);
+      --cal-closed-bg: rgba(239, 68, 68, 0.12);
+      --cal-dot-open: rgba(34, 197, 94, 0.5);
+      --cal-dot-closed: rgba(239, 68, 68, 0.3);
+
+      --snow-light-bg: rgba(37, 99, 235, 0.08);
+      --snow-light-text: #3b82f6;
+      --snow-med-bg: rgba(37, 99, 235, 0.18);
+      --snow-med-text: #2563eb;
+      --snow-heavy-bg: rgba(37, 99, 235, 0.30);
+      --snow-heavy-text: #1e3a5f;
+      --snow-dot: rgba(37, 99, 235, 0.5);
+
+      --cell-open-bg: rgba(34, 197, 94, 0.12);
+      --cell-closed-bg: rgba(239, 68, 68, 0.08);
+      --cell-snow: #2563eb;
+      --snow-row: #2563eb;
+
+      --error: #dc2626;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0f1923;
-      color: #e8edf2;
+      background: var(--bg-body);
+      color: var(--text-body);
       min-height: 100vh;
       padding: 24px 16px;
     }
@@ -18,20 +140,49 @@
     header {
       text-align: center;
       margin-bottom: 28px;
+      position: relative;
     }
 
     header h1 {
       font-size: 1.8rem;
       font-weight: 700;
       letter-spacing: -0.5px;
-      color: #fff;
+      color: var(--text-heading);
     }
 
     header p {
-      color: #7a8fa6;
+      color: var(--text-secondary);
       font-size: 0.9rem;
       margin-top: 4px;
     }
+
+    .theme-toggle {
+      position: absolute;
+      right: 0;
+      top: 4px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      transition: border-color 0.15s, color 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .theme-toggle .icon-sun { display: block; }
+    .theme-toggle .icon-moon { display: none; }
+    [data-theme="light"] .theme-toggle .icon-sun { display: none; }
+    [data-theme="light"] .theme-toggle .icon-moon { display: block; }
 
     .controls {
       display: flex;
@@ -44,13 +195,13 @@
 
     .controls label {
       font-size: 0.9rem;
-      color: #7a8fa6;
+      color: var(--text-secondary);
     }
 
     .controls input[type="date"] {
-      background: #1e2d3d;
-      border: 1px solid #2d4155;
-      color: #e8edf2;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-body);
       padding: 8px 14px;
       border-radius: 8px;
       font-size: 1rem;
@@ -59,13 +210,13 @@
 
     .controls input[type="date"]:focus {
       outline: none;
-      border-color: #4a9eff;
+      border-color: var(--accent);
     }
 
     .btn-today {
-      background: #1e2d3d;
-      border: 1px solid #2d4155;
-      color: #7a8fa6;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
       padding: 8px 14px;
       border-radius: 8px;
       font-size: 0.85rem;
@@ -74,8 +225,8 @@
     }
 
     .btn-today:hover {
-      border-color: #4a9eff;
-      color: #4a9eff;
+      border-color: var(--accent);
+      color: var(--accent);
     }
 
     .grid {
@@ -87,21 +238,21 @@
     }
 
     .resort-card {
-      background: #1a2535;
-      border: 1px solid #2d4155;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 14px;
       overflow: hidden;
     }
 
     .resort-header {
       padding: 16px 20px 14px;
-      border-bottom: 1px solid #2d4155;
+      border-bottom: 1px solid var(--border);
     }
 
     .resort-name {
       font-size: 1.1rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--text-heading);
     }
 
     .snow-badge {
@@ -110,13 +261,13 @@
       gap: 5px;
       margin-top: 6px;
       font-size: 0.82rem;
-      color: #7a8fa6;
+      color: var(--text-secondary);
       cursor: pointer;
       transition: color 0.15s;
     }
 
     .snow-badge:hover {
-      color: #4a9eff;
+      color: var(--accent);
     }
 
     .snow-badge:hover .amount {
@@ -124,12 +275,12 @@
     }
 
     .snow-badge .amount {
-      color: #4a9eff;
+      color: var(--accent);
       font-weight: 600;
     }
 
     .snow-badge.has-snow .amount {
-      color: #60c8ff;
+      color: var(--accent-bright);
     }
 
     .terrain-list {
@@ -140,7 +291,7 @@
       display: flex;
       align-items: center;
       padding: 10px 20px;
-      border-bottom: 1px solid #1e2d3d;
+      border-bottom: 1px solid var(--border-subtle);
       gap: 10px;
       transition: background 0.1s;
     }
@@ -150,32 +301,32 @@
     }
 
     .terrain-row.powder-alert {
-      background: rgba(255, 200, 50, 0.06);
-      border-left: 3px solid #ffb800;
+      background: var(--powder-bg);
+      border-left: 3px solid var(--powder-border);
       padding-left: 17px;
     }
 
     .terrain-name {
       flex: 1;
       font-size: 0.9rem;
-      color: #c8d8e8;
+      color: var(--text-tertiary);
       cursor: pointer;
       transition: color 0.15s;
     }
 
     .terrain-name:hover {
-      color: #4a9eff;
+      color: var(--accent);
       text-decoration: underline;
     }
 
     .streak-badge {
       font-size: 0.75rem;
-      color: #4a6070;
+      color: var(--text-muted);
       white-space: nowrap;
     }
 
     .powder-alert .streak-badge {
-      color: #c8900a;
+      color: var(--powder-text);
     }
 
     .status-pill {
@@ -187,21 +338,21 @@
     }
 
     .status-pill.open {
-      background: rgba(34, 197, 94, 0.15);
-      color: #4ade80;
-      border: 1px solid rgba(34, 197, 94, 0.3);
+      background: var(--open-pill-bg);
+      color: var(--open-text);
+      border: 1px solid var(--open-pill-border);
     }
 
     .status-pill.closed {
-      background: rgba(239, 68, 68, 0.1);
-      color: #f87171;
-      border: 1px solid rgba(239, 68, 68, 0.2);
+      background: var(--closed-pill-bg);
+      color: var(--closed-text);
+      border: 1px solid var(--closed-pill-border);
     }
 
     .status-pill.no-data {
-      background: rgba(100, 116, 139, 0.1);
-      color: #64748b;
-      border: 1px solid rgba(100, 116, 139, 0.2);
+      background: var(--nodata-pill-bg);
+      color: var(--nodata-pill-text);
+      border: 1px solid var(--nodata-pill-border);
     }
 
     .powder-icon {
@@ -211,28 +362,28 @@
     .no-data-msg {
       padding: 24px 20px;
       text-align: center;
-      color: #4a6070;
+      color: var(--text-muted);
       font-size: 0.85rem;
     }
 
     .loading {
       text-align: center;
       padding: 60px;
-      color: #4a6070;
+      color: var(--text-muted);
       font-size: 0.9rem;
     }
 
     .error-msg {
       text-align: center;
       padding: 40px;
-      color: #f87171;
+      color: var(--error);
       font-size: 0.85rem;
     }
 
     footer {
       text-align: center;
       margin-top: 40px;
-      color: #344c5c;
+      color: var(--text-faint);
       font-size: 0.8rem;
     }
 
@@ -243,7 +394,7 @@
     }
 
     #history-section h2 {
-      color: #fff;
+      color: var(--text-heading);
       font-size: 1.3rem;
       margin-bottom: 16px;
       text-align: center;
@@ -251,9 +402,9 @@
 
     #history-table-wrap {
       overflow-x: auto;
-      border: 1px solid #2d4155;
+      border: 1px solid var(--border);
       border-radius: 14px;
-      background: #1a2535;
+      background: var(--bg-card);
       max-height: 600px;
       overflow-y: auto;
     }
@@ -268,13 +419,13 @@
     #history-table th,
     #history-table td {
       padding: 6px 10px;
-      border: 1px solid #1e2d3d;
+      border: 1px solid var(--border-subtle);
       text-align: center;
     }
 
     #history-table thead th {
-      background: #1e2d3d;
-      color: #7a8fa6;
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
       position: sticky;
       top: 0;
       z-index: 2;
@@ -284,8 +435,8 @@
     #history-table .row-label {
       position: sticky;
       left: 0;
-      background: #1a2535;
-      color: #c8d8e8;
+      background: var(--bg-card);
+      color: var(--text-tertiary);
       text-align: left;
       font-weight: 500;
       z-index: 3;
@@ -295,13 +446,13 @@
     }
 
     #history-table .row-label:hover {
-      color: #4a9eff;
+      color: var(--accent);
       text-decoration: underline;
     }
 
     #history-table .resort-divider td {
-      background: #0f1923;
-      color: #4a9eff;
+      background: var(--bg-body);
+      color: var(--accent);
       font-weight: 700;
       font-size: 0.8rem;
       text-align: left;
@@ -315,22 +466,22 @@
       position: sticky;
       left: 0;
       z-index: 4;
-      background: #1e2d3d;
+      background: var(--bg-elevated);
     }
 
     .cell-open {
-      background: rgba(34, 197, 94, 0.2);
-      color: #4ade80;
+      background: var(--cell-open-bg);
+      color: var(--open-text);
     }
 
     .cell-closed {
-      background: rgba(239, 68, 68, 0.1);
-      color: #f87171;
+      background: var(--cell-closed-bg);
+      color: var(--closed-text);
     }
 
     .cell-nodata {
       background: transparent;
-      color: #2d4155;
+      color: var(--text-nodata);
     }
 
     /* ─── Calendar Modal ─── */
@@ -346,13 +497,13 @@
     #calendar-backdrop {
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.65);
+      background: var(--backdrop);
     }
 
     #calendar-content {
       position: relative;
-      background: #1a2535;
-      border: 1px solid #2d4155;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 14px;
       padding: 24px;
       min-width: 320px;
@@ -369,9 +520,9 @@
     }
 
     #calendar-header button {
-      background: #1e2d3d;
-      border: 1px solid #2d4155;
-      color: #7a8fa6;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
       padding: 6px 12px;
       border-radius: 8px;
       cursor: pointer;
@@ -380,8 +531,8 @@
     }
 
     #calendar-header button:hover {
-      border-color: #4a9eff;
-      color: #4a9eff;
+      border-color: var(--accent);
+      color: var(--accent);
     }
 
     #cal-title {
@@ -389,12 +540,12 @@
       text-align: center;
       font-size: 1rem;
       font-weight: 600;
-      color: #fff;
+      color: var(--text-heading);
     }
 
     #cal-terrain-name {
       text-align: center;
-      color: #7a8fa6;
+      color: var(--text-secondary);
       font-size: 0.85rem;
       margin-bottom: 16px;
     }
@@ -408,7 +559,7 @@
     .cal-day-header {
       text-align: center;
       font-size: 0.7rem;
-      color: #4a6070;
+      color: var(--text-muted);
       font-weight: 600;
       padding: 4px 0;
     }
@@ -440,17 +591,17 @@
     }
 
     .cal-day.open {
-      background: rgba(34, 197, 94, 0.25);
-      color: #4ade80;
+      background: var(--cal-open-bg);
+      color: var(--open-text);
     }
 
     .cal-day.closed {
-      background: rgba(239, 68, 68, 0.15);
-      color: #f87171;
+      background: var(--cal-closed-bg);
+      color: var(--closed-text);
     }
 
     .cal-day.nodata {
-      color: #2d4155;
+      color: var(--text-nodata);
     }
 
     .cal-day.empty {
@@ -458,7 +609,7 @@
     }
 
     .cal-day.today {
-      border: 2px solid #4a9eff;
+      border: 2px solid var(--accent);
     }
 
     #cal-legend {
@@ -467,7 +618,7 @@
       gap: 16px;
       margin-top: 16px;
       font-size: 0.75rem;
-      color: #7a8fa6;
+      color: var(--text-secondary);
     }
 
     .cal-legend-item {
@@ -483,49 +634,49 @@
       display: inline-block;
     }
 
-    .cal-dot-open { background: rgba(34, 197, 94, 0.5); }
-    .cal-dot-closed { background: rgba(239, 68, 68, 0.3); }
-    .cal-dot-nodata { background: #2d4155; }
+    .cal-dot-open { background: var(--cal-dot-open); }
+    .cal-dot-closed { background: var(--cal-dot-closed); }
+    .cal-dot-nodata { background: var(--text-nodata); }
 
     /* Snow calendar day cells */
     .cal-day.snow-light {
-      background: rgba(74, 158, 255, 0.15);
-      color: #7abfff;
+      background: var(--snow-light-bg);
+      color: var(--snow-light-text);
     }
 
     .cal-day.snow-medium {
-      background: rgba(74, 158, 255, 0.30);
-      color: #a0d4ff;
+      background: var(--snow-med-bg);
+      color: var(--snow-med-text);
     }
 
     .cal-day.snow-heavy {
-      background: rgba(96, 200, 255, 0.45);
-      color: #fff;
+      background: var(--snow-heavy-bg);
+      color: var(--snow-heavy-text);
       font-weight: 700;
     }
 
     .cal-day.snow-none {
-      color: #2d4155;
+      color: var(--text-nodata);
     }
 
-    .cal-dot-snow { background: rgba(74, 158, 255, 0.5); }
+    .cal-dot-snow { background: var(--snow-dot); }
 
     /* Snow row in spreadsheet */
     #history-table .snow-row td {
       font-size: 0.65rem;
-      color: #4a9eff;
+      color: var(--snow-row);
       padding: 3px 10px;
     }
 
     #history-table .snow-row .row-label {
       font-size: 0.7rem;
-      color: #7a8fa6;
+      color: var(--text-secondary);
       font-style: italic;
       font-weight: 400;
     }
 
     .cell-snow {
-      color: #60c8ff !important;
+      color: var(--cell-snow) !important;
       font-weight: 600;
     }
 
@@ -538,7 +689,7 @@
     .resort-divider-snow {
       font-size: 0.7rem;
       font-weight: 400;
-      color: #7a8fa6;
+      color: var(--text-secondary);
     }
   </style>
 </head>
@@ -547,6 +698,10 @@
 <header>
   <h1>Utah Ski Terrain Tracker</h1>
   <p>Powder-hunting intelligence for Snowbird, Solitude, Brighton &amp; Snowbasin</p>
+  <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+    <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
 </header>
 
 <div class="controls">
@@ -591,6 +746,22 @@
 </div>
 
 <script>
+  // ─── Theme Toggle ───
+
+  function toggleTheme() {
+    const html = document.documentElement;
+    const current = html.getAttribute('data-theme');
+    const next = current === 'light' ? 'dark' : 'light';
+    if (next === 'dark') {
+      html.removeAttribute('data-theme');
+    } else {
+      html.setAttribute('data-theme', 'light');
+    }
+    localStorage.setItem('theme', next);
+  }
+
+  // ─── Constants ───
+
   const RESORT_LABELS = {
     snowbird: 'Snowbird',
     solitude: 'Solitude',

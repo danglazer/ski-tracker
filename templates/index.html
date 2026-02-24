@@ -308,10 +308,14 @@
 
     .terrain-name {
       flex: 1;
+      min-width: 0;
       font-size: 0.9rem;
       color: var(--text-tertiary);
       cursor: pointer;
       transition: color 0.15s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .terrain-name:hover {

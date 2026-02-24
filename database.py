@@ -156,7 +156,7 @@ def get_full_history():
     conn = _connect()
     c = conn.cursor()
     c.execute("""
-        SELECT resort, terrain_name, date, ever_opened
+        SELECT resort, terrain_name, date, ever_opened, snowfall_24hr
         FROM daily_summary
         ORDER BY date ASC
     """)
@@ -166,18 +166,42 @@ def get_full_history():
     dates = []
     date_set = set()
     terrain_map = {}
+    snow_map = {}  # {resort: {date: snowfall_24hr}}
 
     for row in rows:
         d = row["date"]
+        resort = row["resort"]
         if d not in date_set:
             date_set.add(d)
             dates.append(d)
-        key = f'{row["resort"]}|{row["terrain_name"]}'
+        key = f'{resort}|{row["terrain_name"]}'
         if key not in terrain_map:
             terrain_map[key] = {}
         terrain_map[key][d] = row["ever_opened"]
 
-    return {"dates": dates, "terrain": terrain_map}
+        # Track snow per resort per date (all terrain rows share same value)
+        if resort not in snow_map:
+            snow_map[resort] = {}
+        if d not in snow_map[resort]:
+            snow_map[resort][d] = row["snowfall_24hr"]
+
+    return {"dates": dates, "terrain": terrain_map, "snow": snow_map}
+
+
+def get_resort_snow_history(resort):
+    """Returns daily snowfall history for a resort (one value per date)."""
+    conn = _connect()
+    c = conn.cursor()
+    c.execute("""
+        SELECT date, snowfall_24hr
+        FROM daily_summary
+        WHERE resort = ?
+        GROUP BY date
+        ORDER BY date ASC
+    """, (resort,))
+    rows = c.fetchall()
+    conn.close()
+    return {row["date"]: row["snowfall_24hr"] for row in rows}
 
 
 def get_terrain_history(resort, terrain_name):

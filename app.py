@@ -3,7 +3,7 @@ from datetime import datetime
 import pytz
 from flask import Flask, jsonify, render_template, request
 
-from database import init_db, get_daily_view, get_all_dates, get_full_history, get_terrain_history
+from database import init_db, get_daily_view, get_all_dates, get_full_history, get_terrain_history, get_resort_snow_history
 
 app = Flask(__name__)
 MTN_TZ = pytz.timezone("America/Denver")
@@ -61,6 +61,15 @@ def api_terrain_calendar():
         return jsonify({"error": "resort and terrain required"}), 400
     days = get_terrain_history(resort, terrain)
     return jsonify({"resort": resort, "terrain": terrain, "days": days})
+
+
+@app.route("/api/snow-calendar")
+def api_snow_calendar():
+    resort = request.args.get("resort")
+    if not resort:
+        return jsonify({"error": "resort required"}), 400
+    days = get_resort_snow_history(resort)
+    return jsonify({"resort": resort, "days": days})
 
 
 if __name__ == "__main__":

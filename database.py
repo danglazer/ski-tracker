@@ -149,3 +149,47 @@ def get_all_dates():
     dates = [row["date"] for row in c.fetchall()]
     conn.close()
     return dates
+
+
+def get_full_history():
+    """Returns all terrain open/closed data across all dates for the spreadsheet view."""
+    conn = _connect()
+    c = conn.cursor()
+    c.execute("""
+        SELECT resort, terrain_name, date, ever_opened
+        FROM daily_summary
+        ORDER BY date ASC
+    """)
+    rows = c.fetchall()
+    conn.close()
+
+    dates = []
+    date_set = set()
+    terrain_map = {}
+
+    for row in rows:
+        d = row["date"]
+        if d not in date_set:
+            date_set.add(d)
+            dates.append(d)
+        key = f'{row["resort"]}|{row["terrain_name"]}'
+        if key not in terrain_map:
+            terrain_map[key] = {}
+        terrain_map[key][d] = row["ever_opened"]
+
+    return {"dates": dates, "terrain": terrain_map}
+
+
+def get_terrain_history(resort, terrain_name):
+    """Returns one terrain's full open/closed history for the calendar view."""
+    conn = _connect()
+    c = conn.cursor()
+    c.execute("""
+        SELECT date, ever_opened
+        FROM daily_summary
+        WHERE resort = ? AND terrain_name = ?
+        ORDER BY date ASC
+    """, (resort, terrain_name))
+    rows = c.fetchall()
+    conn.close()
+    return {row["date"]: row["ever_opened"] for row in rows}

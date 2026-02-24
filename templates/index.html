@@ -149,6 +149,13 @@
       flex: 1;
       font-size: 0.9rem;
       color: #c8d8e8;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+
+    .terrain-name:hover {
+      color: #4a9eff;
+      text-decoration: underline;
     }
 
     .streak-badge {
@@ -218,12 +225,247 @@
       color: #344c5c;
       font-size: 0.8rem;
     }
+
+    /* ─── History Spreadsheet ─── */
+    #history-section {
+      max-width: 1200px;
+      margin: 48px auto 0;
+    }
+
+    #history-section h2 {
+      color: #fff;
+      font-size: 1.3rem;
+      margin-bottom: 16px;
+      text-align: center;
+    }
+
+    #history-table-wrap {
+      overflow-x: auto;
+      border: 1px solid #2d4155;
+      border-radius: 14px;
+      background: #1a2535;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+
+    #history-table {
+      border-collapse: collapse;
+      font-size: 0.75rem;
+      white-space: nowrap;
+      width: 100%;
+    }
+
+    #history-table th,
+    #history-table td {
+      padding: 6px 10px;
+      border: 1px solid #1e2d3d;
+      text-align: center;
+    }
+
+    #history-table thead th {
+      background: #1e2d3d;
+      color: #7a8fa6;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      font-weight: 600;
+    }
+
+    #history-table .row-label {
+      position: sticky;
+      left: 0;
+      background: #1a2535;
+      color: #c8d8e8;
+      text-align: left;
+      font-weight: 500;
+      z-index: 3;
+      min-width: 180px;
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+
+    #history-table .row-label:hover {
+      color: #4a9eff;
+      text-decoration: underline;
+    }
+
+    #history-table .resort-divider td {
+      background: #0f1923;
+      color: #4a9eff;
+      font-weight: 700;
+      font-size: 0.8rem;
+      text-align: left;
+      padding: 10px 12px;
+      border: none;
+      position: sticky;
+      left: 0;
+    }
+
+    #history-table thead th:first-child {
+      position: sticky;
+      left: 0;
+      z-index: 4;
+      background: #1e2d3d;
+    }
+
+    .cell-open {
+      background: rgba(34, 197, 94, 0.2);
+      color: #4ade80;
+    }
+
+    .cell-closed {
+      background: rgba(239, 68, 68, 0.1);
+      color: #f87171;
+    }
+
+    .cell-nodata {
+      background: transparent;
+      color: #2d4155;
+    }
+
+    /* ─── Calendar Modal ─── */
+    #calendar-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #calendar-backdrop {
+      position: absolute;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.65);
+    }
+
+    #calendar-content {
+      position: relative;
+      background: #1a2535;
+      border: 1px solid #2d4155;
+      border-radius: 14px;
+      padding: 24px;
+      min-width: 320px;
+      max-width: 400px;
+      width: 90vw;
+      z-index: 1;
+    }
+
+    #calendar-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    #calendar-header button {
+      background: #1e2d3d;
+      border: 1px solid #2d4155;
+      color: #7a8fa6;
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.15s;
+    }
+
+    #calendar-header button:hover {
+      border-color: #4a9eff;
+      color: #4a9eff;
+    }
+
+    #cal-title {
+      flex: 1;
+      text-align: center;
+      font-size: 1rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    #cal-terrain-name {
+      text-align: center;
+      color: #7a8fa6;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+
+    #cal-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 4px;
+    }
+
+    .cal-day-header {
+      text-align: center;
+      font-size: 0.7rem;
+      color: #4a6070;
+      font-weight: 600;
+      padding: 4px 0;
+    }
+
+    .cal-day {
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+      font-size: 0.78rem;
+      font-weight: 500;
+    }
+
+    .cal-day.open {
+      background: rgba(34, 197, 94, 0.25);
+      color: #4ade80;
+    }
+
+    .cal-day.closed {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+    }
+
+    .cal-day.nodata {
+      color: #2d4155;
+    }
+
+    .cal-day.empty {
+      /* spacer cells before first of month */
+    }
+
+    .cal-day.today {
+      border: 2px solid #4a9eff;
+    }
+
+    #cal-legend {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 16px;
+      font-size: 0.75rem;
+      color: #7a8fa6;
+    }
+
+    .cal-legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .cal-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .cal-dot-open { background: rgba(34, 197, 94, 0.5); }
+    .cal-dot-closed { background: rgba(239, 68, 68, 0.3); }
+    .cal-dot-nodata { background: #2d4155; }
   </style>
 </head>
 <body>
 
 <header>
-  <h1>⛷️ Utah Ski Terrain Tracker</h1>
+  <h1>Utah Ski Terrain Tracker</h1>
   <p>Powder-hunting intelligence for Snowbird, Solitude, Brighton &amp; Snowbasin</p>
 </header>
 
@@ -234,12 +476,39 @@
 </div>
 
 <div class="grid" id="resort-grid">
-  <div class="loading">Loading terrain data…</div>
+  <div class="loading">Loading terrain data...</div>
 </div>
 
+<section id="history-section" style="display:none;">
+  <h2>Season History</h2>
+  <div id="history-table-wrap">
+    <table id="history-table"></table>
+  </div>
+</section>
+
 <footer>
-  Updated hourly 9am – 4pm Mountain Time &nbsp;·&nbsp; ⚠️ = Snowed but never opened = potential powder tomorrow
+  Updated hourly 9am - 4pm Mountain Time &nbsp;&middot;&nbsp; Click any terrain name for calendar view
 </footer>
+
+<!-- Calendar Modal -->
+<div id="calendar-modal" style="display:none;">
+  <div id="calendar-backdrop"></div>
+  <div id="calendar-content">
+    <div id="calendar-header">
+      <button id="cal-prev" onclick="calNav(-1)">&larr;</button>
+      <span id="cal-title"></span>
+      <button id="cal-next" onclick="calNav(1)">&rarr;</button>
+      <button id="cal-close" onclick="closeCalendar()">&times;</button>
+    </div>
+    <div id="cal-terrain-name"></div>
+    <div id="cal-grid"></div>
+    <div id="cal-legend">
+      <span class="cal-legend-item"><span class="cal-dot cal-dot-open"></span> Opened</span>
+      <span class="cal-legend-item"><span class="cal-dot cal-dot-closed"></span> Closed</span>
+      <span class="cal-legend-item"><span class="cal-dot cal-dot-nodata"></span> No data</span>
+    </div>
+  </div>
+</div>
 
 <script>
   const RESORT_LABELS = {
@@ -261,9 +530,11 @@
     loadData(today);
   }
 
+  // ─── Daily Card View ───
+
   function loadData(date) {
     const grid = document.getElementById('resort-grid');
-    grid.innerHTML = '<div class="loading">Loading terrain data…</div>';
+    grid.innerHTML = '<div class="loading">Loading terrain data...</div>';
 
     fetch(`/api/status?date=${date}`)
       .then(r => r.json())
@@ -291,7 +562,7 @@
         <div class="resort-header">
           <div class="resort-name">${RESORT_LABELS[resortKey] || resortKey}</div>
           <div class="snow-badge ${hasSnow ? 'has-snow' : ''}">
-            ❄️ 24hr snowfall: <span class="amount">${snow > 0 ? snow + '"' : 'None'}</span>
+            24hr snowfall: <span class="amount">${snow > 0 ? snow + '"' : 'None'}</span>
           </div>
         </div>
         <div class="terrain-list" id="terrain-${resortKey}"></div>
@@ -310,7 +581,6 @@
       for (const t of terrain) {
         const row = document.createElement('div');
 
-        // Powder alert: snowed but terrain never opened
         const isPowderAlert = hasSnow && !t.ever_opened;
         row.className = 'terrain-row' + (isPowderAlert ? ' powder-alert' : '');
 
@@ -318,18 +588,20 @@
         if (t.ever_opened === null || t.ever_opened === undefined) {
           pillClass = 'no-data'; pillText = 'No data';
         } else if (t.ever_opened) {
-          pillClass = 'open'; pillText = '✓ Opened';
+          pillClass = 'open'; pillText = 'Opened';
         } else {
-          pillClass = 'closed'; pillText = '✗ Closed all day';
+          pillClass = 'closed'; pillText = 'Closed all day';
         }
 
         const streakText = (!t.ever_opened && t.closed_streak > 0)
           ? `${t.closed_streak}d closed`
           : '';
 
+        const escapedName = t.name.replace(/'/g, "\\'");
+
         row.innerHTML = `
-          ${isPowderAlert ? '<span class="powder-icon">⚠️</span>' : ''}
-          <span class="terrain-name">${t.name}</span>
+          ${isPowderAlert ? '<span class="powder-icon">!</span>' : ''}
+          <span class="terrain-name" onclick="openCalendar('${resortKey}', '${escapedName}')">${t.name}</span>
           ${streakText ? `<span class="streak-badge">${streakText}</span>` : ''}
           <span class="status-pill ${pillClass}">${pillText}</span>
         `;
@@ -339,7 +611,179 @@
     }
   }
 
-  // Initialize
+  // ─── History Spreadsheet ───
+
+  function loadHistory() {
+    fetch('/api/history')
+      .then(r => r.json())
+      .then(data => renderHistory(data))
+      .catch(err => console.error('History load failed:', err));
+  }
+
+  function renderHistory(data) {
+    const section = document.getElementById('history-section');
+    const table = document.getElementById('history-table');
+    const dates = data.dates;
+
+    if (dates.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = '';
+
+    function fmtDate(dateStr) {
+      const [y, m, d] = dateStr.split('-');
+      return `${parseInt(m)}/${parseInt(d)}`;
+    }
+
+    // Build header row
+    let html = '<thead><tr><th>Terrain</th>';
+    for (const d of dates) {
+      html += `<th title="${d}">${fmtDate(d)}</th>`;
+    }
+    html += '</tr></thead><tbody>';
+
+    // Group terrain by resort in RESORT_ORDER
+    const terrainKeys = Object.keys(data.terrain);
+    for (const resortKey of RESORT_ORDER) {
+      const resortTerrains = terrainKeys.filter(k => k.startsWith(resortKey + '|'));
+      if (resortTerrains.length === 0) continue;
+
+      // Resort divider row
+      html += `<tr class="resort-divider"><td colspan="${dates.length + 1}">${RESORT_LABELS[resortKey] || resortKey}</td></tr>`;
+
+      for (const key of resortTerrains) {
+        const parts = key.split('|');
+        const resort = parts[0];
+        const terrainName = parts.slice(1).join('|');
+        const dayMap = data.terrain[key];
+        const escapedName = terrainName.replace(/'/g, "\\'");
+
+        html += `<tr><td class="row-label" onclick="openCalendar('${resort}', '${escapedName}')">${terrainName}</td>`;
+
+        for (const d of dates) {
+          const val = dayMap[d];
+          if (val === undefined || val === null) {
+            html += '<td class="cell-nodata">-</td>';
+          } else if (val === 1) {
+            html += `<td class="cell-open" title="${d}: Opened">&#9679;</td>`;
+          } else {
+            html += `<td class="cell-closed" title="${d}: Closed">&#9679;</td>`;
+          }
+        }
+        html += '</tr>';
+      }
+    }
+
+    html += '</tbody>';
+    table.innerHTML = html;
+  }
+
+  // ─── Calendar Modal ───
+
+  let calendarData = {};
+  let calendarMonth = null;
+  let calendarResort = '';
+  let calendarTerrain = '';
+
+  function openCalendar(resort, terrain) {
+    calendarResort = resort;
+    calendarTerrain = terrain;
+
+    document.getElementById('cal-terrain-name').textContent =
+      `${RESORT_LABELS[resort] || resort} \u2014 ${terrain}`;
+
+    fetch(`/api/terrain-calendar?resort=${encodeURIComponent(resort)}&terrain=${encodeURIComponent(terrain)}`)
+      .then(r => r.json())
+      .then(data => {
+        calendarData = data.days || {};
+        const allDates = Object.keys(calendarData).sort();
+        if (allDates.length > 0) {
+          const last = allDates[allDates.length - 1];
+          calendarMonth = new Date(last + 'T00:00:00');
+        } else {
+          calendarMonth = new Date();
+        }
+        calendarMonth.setDate(1);
+        renderCalendar();
+        document.getElementById('calendar-modal').style.display = 'flex';
+      });
+  }
+
+  function closeCalendar() {
+    document.getElementById('calendar-modal').style.display = 'none';
+  }
+
+  function calNav(delta) {
+    calendarMonth.setMonth(calendarMonth.getMonth() + delta);
+    renderCalendar();
+  }
+
+  function renderCalendar() {
+    const year = calendarMonth.getFullYear();
+    const month = calendarMonth.getMonth();
+
+    const monthNames = ['January','February','March','April','May','June',
+                        'July','August','September','October','November','December'];
+    document.getElementById('cal-title').textContent = `${monthNames[month]} ${year}`;
+
+    const grid = document.getElementById('cal-grid');
+    grid.innerHTML = '';
+
+    // Day-of-week headers
+    const dayNames = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+    for (const dn of dayNames) {
+      const el = document.createElement('div');
+      el.className = 'cal-day-header';
+      el.textContent = dn;
+      grid.appendChild(el);
+    }
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayStr = formatDate(new Date());
+
+    // Empty cells before first day
+    for (let i = 0; i < firstDay; i++) {
+      const el = document.createElement('div');
+      el.className = 'cal-day empty';
+      grid.appendChild(el);
+    }
+
+    // Day cells
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const el = document.createElement('div');
+
+      let cls = 'cal-day';
+      if (calendarData[dateStr] === 1) {
+        cls += ' open';
+      } else if (calendarData[dateStr] === 0) {
+        cls += ' closed';
+      } else {
+        cls += ' nodata';
+      }
+      if (dateStr === todayStr) {
+        cls += ' today';
+      }
+
+      el.className = cls;
+      el.textContent = d;
+      el.title = dateStr;
+      grid.appendChild(el);
+    }
+  }
+
+  // Close modal on backdrop click
+  document.getElementById('calendar-backdrop').addEventListener('click', closeCalendar);
+
+  // Close modal on Escape key
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeCalendar();
+  });
+
+  // ─── Initialize ───
+
   const picker = document.getElementById('date-picker');
   const today = formatDate(new Date());
   picker.value = today;
@@ -350,6 +794,7 @@
   });
 
   loadData(today);
+  loadHistory();
 </script>
 
 </body>

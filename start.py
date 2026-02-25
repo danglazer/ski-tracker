@@ -1,6 +1,7 @@
 """Combined entry point: runs the scheduler + Flask web app in one process."""
 
 import threading
+import time
 from datetime import datetime
 
 import pytz
@@ -36,14 +37,17 @@ def run_scrape():
 
 
 def start_scheduler():
-    print("Running initial scrape on startup...")
-    run_scrape()
+    # Wait for Flask to bind before starting scraper
+    time.sleep(3)
 
     scheduler = BackgroundScheduler(timezone=MTN_TZ)
     trigger = CronTrigger(hour="9-16", minute=0, timezone=MTN_TZ)
     scheduler.add_job(run_scrape, trigger)
     scheduler.start()
     print("Scheduler started. Scraping hourly 9am-4pm Mountain Time.")
+
+    print("Running initial scrape in background...")
+    threading.Thread(target=run_scrape, daemon=True).start()
 
 
 if __name__ == "__main__":

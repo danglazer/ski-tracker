@@ -128,11 +128,10 @@
 
     .terrain-row {
       display: flex;
-      flex-wrap: wrap;
       align-items: center;
       padding: 10px 20px;
       border-bottom: 1px solid #1e2d3d;
-      gap: 4px 10px;
+      gap: 10px;
       transition: background 0.1s;
     }
 
@@ -147,11 +146,15 @@
     }
 
     .terrain-name {
-      width: 100%;
+      flex: 1;
+      min-width: 0;
       font-size: 0.95rem;
       color: #e2edf8;
       cursor: pointer;
       transition: color 0.15s;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
     }
 
     .terrain-name:hover {

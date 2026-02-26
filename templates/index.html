@@ -782,12 +782,45 @@
       color: var(--text-body);
       font-size: 0.9rem;
       line-height: 1.6;
-      white-space: pre-wrap;
+    }
+
+    .snow-report-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+
+    .snow-metric {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 12px 14px;
+      text-align: center;
+    }
+
+    .snow-metric-label {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .snow-metric-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-heading);
+    }
+
+    .snow-report-empty {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 20px 0;
     }
 
     /* ─── Daily Digest Section ─── */
     #digest-section {
-      max-width: 800px;
+      max-width: 1200px;
       margin: 0 auto 32px;
     }
 
@@ -848,7 +881,7 @@
 
     /* ─── Avalanche Section ─── */
     #avalanche-section {
-      max-width: 800px;
+      max-width: 1200px;
       margin: 0 auto 32px;
     }
 
@@ -1481,17 +1514,45 @@
     const title = document.getElementById('snow-report-title');
     const body = document.getElementById('snow-report-body');
 
-    title.textContent = `${RESORT_LABELS[resort] || resort} — Snow Report (${date})`;
-    body.textContent = 'Loading...';
+    title.textContent = `${RESORT_LABELS[resort] || resort} — Snow Report`;
+    body.innerHTML = '<div class="snow-report-empty">Loading...</div>';
     modal.style.display = 'flex';
 
     fetch(`/api/snow-report?resort=${encodeURIComponent(resort)}&date=${date}`)
       .then(r => r.json())
       .then(data => {
-        body.textContent = data.report_text || 'No snow report available for this date.';
+        const text = data.report_text || '';
+        if (!text.trim()) {
+          body.innerHTML = '<div class="snow-report-empty">No snow report available for this date.</div>';
+          return;
+        }
+
+        // Parse "Label: Value" lines into metric cards
+        const lines = text.split('\n').filter(l => l.trim());
+        const metrics = [];
+        for (const line of lines) {
+          const match = line.match(/^(.+?):\s*(.+)$/);
+          if (match) {
+            metrics.push({ label: match[1].trim(), value: match[2].trim() });
+          }
+        }
+
+        if (metrics.length > 0) {
+          body.innerHTML = '<div class="snow-report-grid">' +
+            metrics.map(m =>
+              `<div class="snow-metric">
+                <div class="snow-metric-label">${m.label}</div>
+                <div class="snow-metric-value">${m.value}</div>
+              </div>`
+            ).join('') +
+            '</div>';
+        } else {
+          // Fallback for non-structured text
+          body.textContent = text;
+        }
       })
       .catch(() => {
-        body.textContent = 'Failed to load snow report.';
+        body.innerHTML = '<div class="snow-report-empty">Failed to load snow report.</div>';
       });
   }
 
@@ -1506,7 +1567,7 @@
       .then(r => r.json())
       .then(data => {
         const section = document.getElementById('avalanche-section');
-        if (!data || !data.overall_danger) {
+        if (!data || Object.keys(data).length === 0) {
           section.style.display = 'none';
           return;
         }
@@ -1515,12 +1576,21 @@
         const badge = document.getElementById('avy-badge');
         const danger = data.overall_danger || 'No Rating';
         badge.textContent = danger;
-        badge.className = 'avy-danger-badge avy-danger-' + danger.toLowerCase().replace(/\s+/g, '');
-        // Map "No Rating" to "none"
-        if (danger === 'No Rating') badge.className = 'avy-danger-badge avy-danger-none';
+        if (danger === 'No Rating') {
+          badge.className = 'avy-danger-badge avy-danger-none';
+        } else {
+          badge.className = 'avy-danger-badge avy-danger-' + danger.toLowerCase().replace(/\s+/g, '');
+        }
 
         const summary = document.getElementById('avy-summary');
-        summary.textContent = data.bottom_line || '';
+        const bottomLine = data.bottom_line || '';
+        if (bottomLine) {
+          summary.textContent = bottomLine;
+        } else if (danger === 'No Rating') {
+          summary.textContent = 'No avalanche forecast available for this date. Check utahavalanchecenter.org for the latest.';
+        } else {
+          summary.textContent = '';
+        }
 
         // Parse problems from forecast_json
         const problemsDiv = document.getElementById('avy-problems');

@@ -105,31 +105,37 @@ def scrape_snowbird(page):
                 m2 = re.search(r"([\d.]+)\s*[\"″]\s*24", text)
                 if m2:
                     snow_24hr = float(m2.group(1))
-            # Extract narrative snow report
+            # Extract structured snow report
             try:
                 report_text = page.evaluate("""
                     () => {
-                        // Look for narrative/report sections
-                        const selectors = [
-                            '.conditions-report', '.morning-report', '.snow-report',
-                            '[class*="report"]', '[class*="narrative"]', '[class*="condition"]'
+                        const data = {};
+
+                        // Grab key stats from the conditions page
+                        const body = document.body.innerText;
+
+                        // Look for specific snow metrics
+                        const metrics = [
+                            /24[\\s-]*(?:Hour|Hr)s?[\\s-]*(?:Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /48[\\s-]*(?:Hour|Hr)s?[\\s-]*(?:Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /Base[\\s-]*Depth[:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /Season[\\s-]*(?:Total|Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /(?:Mid[\\s-]*)?Mountain[\\s-]*Temp(?:erature)?[:\\s]*(-?\\d+)/i,
+                            /Summit[\\s-]*Temp(?:erature)?[:\\s]*(-?\\d+)/i,
                         ];
-                        for (const sel of selectors) {
-                            const el = document.querySelector(sel);
-                            if (el && el.textContent.trim().length > 50) {
-                                return el.textContent.trim();
-                            }
+                        const labels = [
+                            '24hr Snowfall', '48hr Snowfall', 'Base Depth',
+                            'Season Total', 'Mountain Temp', 'Summit Temp'
+                        ];
+                        const units = ['"', '"', '"', '"', '°F', '°F'];
+
+                        const parts = [];
+                        for (let i = 0; i < metrics.length; i++) {
+                            const m = body.match(metrics[i]);
+                            if (m) parts.push(labels[i] + ': ' + m[1] + units[i]);
                         }
-                        // Fallback: grab main content paragraphs
-                        const paragraphs = document.querySelectorAll('p');
-                        const texts = [];
-                        for (const p of paragraphs) {
-                            const t = p.textContent.trim();
-                            if (t.length > 40 && !t.match(/^(\\d|copyright|©|privacy|cookie)/i)) {
-                                texts.push(t);
-                            }
-                        }
-                        return texts.slice(0, 5).join('\\n\\n');
+
+                        return parts.join('\\n');
                     }
                 """)
             except Exception:
@@ -207,29 +213,31 @@ def scrape_brighton(page):
                 m2 = re.search(r"Snow\s*24\s*Hrs[.\s]*([\d.]+)", text, re.IGNORECASE)
                 if m2:
                     snow_24hr = float(m2.group(1))
-            # Extract narrative snow report
+            # Extract structured snow report
             try:
                 report_text = page.evaluate("""
                     () => {
-                        const selectors = [
-                            '.conditions-report', '.morning-report', '.snow-report',
-                            '[class*="report"]', '[class*="comment"]', '[class*="condition"]'
+                        const body = document.body.innerText;
+                        const metrics = [
+                            /Snow\\s*24\\s*Hrs?[.:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /Snow\\s*48\\s*Hrs?[.:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /(?:Base|Snow)\\s*Depth[:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /Season[\\s-]*(?:Total|Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /(?:Current\\s+)?Temp(?:erature)?[:\\s]*(-?\\d+)/i,
                         ];
-                        for (const sel of selectors) {
-                            const el = document.querySelector(sel);
-                            if (el && el.textContent.trim().length > 50) {
-                                return el.textContent.trim();
-                            }
+                        const labels = [
+                            '24hr Snowfall', '48hr Snowfall', 'Base Depth',
+                            'Season Total', 'Temperature'
+                        ];
+                        const units = ['"', '"', '"', '"', '°F'];
+
+                        const parts = [];
+                        for (let i = 0; i < metrics.length; i++) {
+                            const m = body.match(metrics[i]);
+                            if (m) parts.push(labels[i] + ': ' + m[1] + units[i]);
                         }
-                        const paragraphs = document.querySelectorAll('p');
-                        const texts = [];
-                        for (const p of paragraphs) {
-                            const t = p.textContent.trim();
-                            if (t.length > 40 && !t.match(/^(\\d|copyright|©|privacy|cookie)/i)) {
-                                texts.push(t);
-                            }
-                        }
-                        return texts.slice(0, 5).join('\\n\\n');
+
+                        return parts.join('\\n');
                     }
                 """)
             except Exception:
@@ -286,19 +294,23 @@ def scrape_snowbasin():
             if m2:
                 snow_24hr = float(m2.group(1))
 
-        # Extract narrative snow report
+        # Extract structured snow report from page text
         report_text = ""
-        report_el = soup.find(class_=re.compile(r"report|narrative|condition|morning", re.IGNORECASE))
-        if report_el and len(report_el.get_text(strip=True)) > 50:
-            report_text = report_el.get_text(strip=True)
-        else:
-            paragraphs = soup.find_all("p")
-            texts = []
-            for p in paragraphs:
-                t = p.get_text(strip=True)
-                if len(t) > 40 and not re.match(r"^(\d|copyright|©|privacy|cookie)", t, re.IGNORECASE):
-                    texts.append(t)
-            report_text = "\n\n".join(texts[:5])
+        page_text_full = soup.get_text()
+        report_parts = []
+        metric_patterns = [
+            (r"24[\s-]*(?:Hour|Hr)s?[\s-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", '24hr Snowfall', '"'),
+            (r"48[\s-]*(?:Hour|Hr)s?[\s-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", '48hr Snowfall', '"'),
+            (r"(?:Base|Snow)[\s-]*Depth[:\s]*([\d.]+)", 'Base Depth', '"'),
+            (r"Season[\s-]*(?:Total|Snow(?:fall)?)[:\s]*([\d.]+)", 'Season Total', '"'),
+            (r"(?:New|Fresh)\s+Snow[:\s]*([\d.]+)", 'New Snow', '"'),
+            (r"(?:Summit|Mountain|Mid)[\s-]*Temp(?:erature)?[:\s]*(-?\d+)", 'Temperature', '°F'),
+        ]
+        for pattern, label, unit in metric_patterns:
+            m = re.search(pattern, page_text_full, re.IGNORECASE)
+            if m:
+                report_parts.append(f"{label}: {m.group(1)}{unit}")
+        report_text = "\n".join(report_parts)
 
         log(f"[snowbasin] Done. Terrain: {terrain_results}, Snow: {snow_24hr}, Report: {len(report_text)} chars")
         return {
@@ -373,30 +385,37 @@ def scrape_solitude(page):
                 if m3:
                     snow_24hr = float(m3.group(1))
 
-        # Extract narrative snow report
+        # Extract structured snow report
         report_text = ""
         try:
             report_text = page.evaluate("""
                 () => {
-                    const selectors = [
-                        '.conditions-report', '.morning-report', '.snow-report',
-                        '[class*="report"]', '[class*="narrative"]', '[class*="condition"]'
+                    const body = document.body.innerText;
+                    const metrics = [
+                        /24[\\s-]*(?:Hour|Hr)s?[\\s-]*(?:Snow(?:fall)?)?[:\\s]*(\\d+[\\.]?\\d*)/i,
+                        /48[\\s-]*(?:Hour|Hr)s?[\\s-]*(?:Snow(?:fall)?)?[:\\s]*(\\d+[\\.]?\\d*)/i,
+                        /(?:Base|Snow)[\\s-]*Depth[:\\s]*(\\d+[\\.]?\\d*)/i,
+                        /Season[\\s-]*(?:Total|Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
+                        /(\\d+[\\.]?\\d*)[\\s]*(?:in)?[\\s]*(?:new|last|24)/i,
+                        /(?:Summit|Mountain|Mid)[\\s-]*Temp(?:erature)?[:\\s]*(-?\\d+)/i,
                     ];
-                    for (const sel of selectors) {
-                        const el = document.querySelector(sel);
-                        if (el && el.textContent.trim().length > 50) {
-                            return el.textContent.trim();
+                    const labels = [
+                        '24hr Snowfall', '48hr Snowfall', 'Base Depth',
+                        'Season Total', 'New Snow', 'Temperature'
+                    ];
+                    const units = ['"', '"', '"', '"', '"', '°F'];
+
+                    const parts = [];
+                    const seen = new Set();
+                    for (let i = 0; i < metrics.length; i++) {
+                        const m = body.match(metrics[i]);
+                        if (m && !seen.has(labels[i])) {
+                            seen.add(labels[i]);
+                            parts.push(labels[i] + ': ' + m[1] + units[i]);
                         }
                     }
-                    const paragraphs = document.querySelectorAll('p');
-                    const texts = [];
-                    for (const p of paragraphs) {
-                        const t = p.textContent.trim();
-                        if (t.length > 40 && !t.match(/^(\\d|copyright|©|privacy|cookie)/i)) {
-                            texts.push(t);
-                        }
-                    }
-                    return texts.slice(0, 5).join('\\n\\n');
+
+                    return parts.join('\\n');
                 }
             """)
         except Exception:

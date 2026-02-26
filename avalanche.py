@@ -49,12 +49,19 @@ def _parse_overall_danger(advisory):
     each aspect/elevation segment — the max value gives the overall rating.
     """
     # Try the danger rose array first (primary method)
+    # Values may be ints, floats, or strings like "5"
     danger_rose = advisory.get("overall_danger_rose", [])
-    if danger_rose and any(v > 0 for v in danger_rose if isinstance(v, (int, float))):
-        max_val = max(v for v in danger_rose if isinstance(v, (int, float)))
-        level = DANGER_LEVELS.get(int(max_val), None)
-        if level:
-            return level
+    if danger_rose:
+        numeric_vals = []
+        for v in danger_rose:
+            try:
+                numeric_vals.append(int(v))
+            except (TypeError, ValueError):
+                pass
+        if numeric_vals and max(numeric_vals) > 0:
+            level = DANGER_LEVELS.get(max(numeric_vals), None)
+            if level:
+                return level
 
     # Try overall_danger as a direct string field
     overall_str = advisory.get("overall_danger", "")
@@ -101,11 +108,19 @@ def fetch_avalanche_forecast():
         resp.raise_for_status()
         data = resp.json()
 
-        # UAC API nests everything inside "advisory" — but handle both
-        # structures for robustness
-        advisory = data.get("advisory", data)
-        if not isinstance(advisory, dict):
-            advisory = data
+        # UAC API structure: {"advisories": [{"advisory": {...}}]}
+        # Extract the advisory dict from the nested structure
+        advisory = {}
+        advisories = data.get("advisories", [])
+        if isinstance(advisories, list) and len(advisories) > 0:
+            first = advisories[0]
+            if isinstance(first, dict):
+                advisory = first.get("advisory", first)
+        # Fallback: maybe it's data["advisory"] directly
+        if not advisory:
+            advisory = data.get("advisory", data)
+
+        print(f"[avalanche] Advisory keys: {list(advisory.keys())[:15]}")
 
         # Extract bottom line (HTML content)
         bottom_line = _clean_html(

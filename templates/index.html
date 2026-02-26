@@ -1550,17 +1550,19 @@
           return;
         }
 
-        // Parse "Label: Value" lines into metric cards
+        // Detect structured metrics: must have 2+ short lines like "24hr Snowfall: 4"
         const lines = text.split('\n').filter(l => l.trim());
         const metrics = [];
-        for (const line of lines) {
-          const match = line.match(/^(.+?):\s*(.+)$/);
-          if (match) {
-            metrics.push({ label: match[1].trim(), value: match[2].trim() });
+        if (lines.length >= 2) {
+          for (const line of lines) {
+            const match = line.match(/^([A-Za-z\s]{3,25}):\s*(-?\d[\d.]*[°"℉]?\s*\w{0,2})$/);
+            if (match) {
+              metrics.push({ label: match[1].trim(), value: match[2].trim() });
+            }
           }
         }
 
-        if (metrics.length > 0) {
+        if (metrics.length >= 2 && metrics.length >= lines.length * 0.5) {
           body.innerHTML = '<div class="snow-report-grid">' +
             metrics.map(m =>
               `<div class="snow-metric">
@@ -1570,25 +1572,29 @@
             ).join('') +
             '</div>';
         } else {
-          // Narrative text fallback — clean up and format as paragraphs
+          // Narrative text — clean junk and break into readable paragraphs
           let cleaned = text
-            .replace(/#\w+>?\s*/g, '')                // Strip hashtags like #GMTB>
-            .replace(/View full mountain report.*/gi, '')  // Strip nav junk
-            .replace(/cookie|privacy|copyright|©/gi, '')   // Strip legal junk
-            .replace(/\n{3,}/g, '\n\n')               // Collapse excess newlines
+            .replace(/#\w+>?\s*/g, '')
+            .replace(/View full mountain report.*/gi, '')
+            .replace(/cookie|privacy|copyright|©/gi, '')
             .trim();
 
-          // Split into paragraphs on double newlines, or treat as one block
-          const paragraphs = cleaned.split(/\n\n+/).filter(p => p.trim().length > 10);
-          if (paragraphs.length > 0) {
-            const escaped = paragraphs.map(p =>
-              '<p>' + p.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
-            ).join('');
-            body.innerHTML = '<div class="snow-report-narrative">' + escaped + '</div>';
-          } else {
-            body.innerHTML = '<div class="snow-report-narrative"><p>' +
-              cleaned.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p></div>';
+          // Split on double newlines first, then break long blocks into ~3 sentence chunks
+          let paras = cleaned.split(/\n\n+/).filter(p => p.trim().length > 10);
+          if (paras.length <= 1) {
+            const sentences = cleaned.split(/(?<=\.)\s+/).filter(s => s.trim().length > 5);
+            paras = [];
+            for (let i = 0; i < sentences.length; i += 3) {
+              paras.push(sentences.slice(i, i + 3).join(' '));
+            }
           }
+          if (paras.length === 0) paras = [cleaned];
+
+          body.innerHTML = '<div class="snow-report-narrative">' +
+            paras.map(p =>
+              '<p>' + p.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
+            ).join('') +
+            '</div>';
         }
       })
       .catch(() => {

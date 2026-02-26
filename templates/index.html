@@ -1576,17 +1576,18 @@
           let cleaned = text
             .replace(/#\w+>?\s*/g, '')
             .replace(/View full mountain report.*/gi, '')
-            .replace(/cookie|privacy|copyright|©/gi, '')
             .trim();
 
-          // Split on double newlines first, then break long blocks into ~3 sentence chunks
-          let paras = cleaned.split(/\n\n+/).filter(p => p.trim().length > 10);
-          if (paras.length <= 1) {
-            const sentences = cleaned.split(/(?<=\.)\s+/).filter(s => s.trim().length > 5);
-            paras = [];
-            for (let i = 0; i < sentences.length; i += 3) {
-              paras.push(sentences.slice(i, i + 3).join(' '));
-            }
+          // Split into sentences, then filter out junk sentences
+          const junkPattern = /cookie|privacy|copyright|©|traffic source|advertising partner|store.*on your browser|count visits|personalized ad|book.*night.*lodging|fourth night.*free|target audience|relevant ad|opt.out|data processing|consent|do not sell/i;
+
+          const allSentences = cleaned.split(/(?<=\.)\s+/).filter(s => s.trim().length > 5);
+          const goodSentences = allSentences.filter(s => !junkPattern.test(s));
+
+          // Group into paragraphs of ~3 sentences
+          let paras = [];
+          for (let i = 0; i < goodSentences.length; i += 3) {
+            paras.push(goodSentences.slice(i, i + 3).join(' '));
           }
           if (paras.length === 0) paras = [cleaned];
 

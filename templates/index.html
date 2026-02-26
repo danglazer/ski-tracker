@@ -4,13 +4,135 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Utah Ski Terrain Tracker</title>
+  <script>
+    (function() {
+      var theme = localStorage.getItem('theme') || 'dark';
+      if (theme === 'light') document.documentElement.setAttribute('data-theme', 'light');
+    })();
+  </script>
   <style>
+    :root {
+      color-scheme: dark;
+
+      --bg-body: #0f1923;
+      --bg-card: #1a2535;
+      --bg-elevated: #1e2d3d;
+
+      --border: #2d4155;
+      --border-subtle: #1e2d3d;
+
+      --text-heading: #fff;
+      --text-body: #e8edf2;
+      --text-secondary: #7a8fa6;
+      --text-tertiary: #c8d8e8;
+      --text-muted: #4a6070;
+      --text-faint: #344c5c;
+      --text-nodata: #2d4155;
+
+      --accent: #4a9eff;
+      --accent-bright: #60c8ff;
+
+      --open-pill-bg: rgba(34, 197, 94, 0.15);
+      --open-text: #4ade80;
+      --open-pill-border: rgba(34, 197, 94, 0.3);
+      --closed-pill-bg: rgba(239, 68, 68, 0.1);
+      --closed-text: #f87171;
+      --closed-pill-border: rgba(239, 68, 68, 0.2);
+      --nodata-pill-bg: rgba(100, 116, 139, 0.1);
+      --nodata-pill-text: #64748b;
+      --nodata-pill-border: rgba(100, 116, 139, 0.2);
+
+      --powder-bg: rgba(255, 200, 50, 0.06);
+      --powder-border: #ffb800;
+      --powder-text: #c8900a;
+
+      --backdrop: rgba(0, 0, 0, 0.65);
+
+      --cal-open-bg: rgba(34, 197, 94, 0.25);
+      --cal-closed-bg: rgba(239, 68, 68, 0.15);
+      --cal-dot-open: rgba(34, 197, 94, 0.5);
+      --cal-dot-closed: rgba(239, 68, 68, 0.3);
+
+      --snow-light-bg: rgba(74, 158, 255, 0.15);
+      --snow-light-text: #7abfff;
+      --snow-med-bg: rgba(74, 158, 255, 0.30);
+      --snow-med-text: #a0d4ff;
+      --snow-heavy-bg: rgba(96, 200, 255, 0.45);
+      --snow-heavy-text: #fff;
+      --snow-dot: rgba(74, 158, 255, 0.5);
+
+      --cell-open-bg: rgba(34, 197, 94, 0.2);
+      --cell-closed-bg: rgba(239, 68, 68, 0.1);
+      --cell-snow: #60c8ff;
+      --snow-row: #4a9eff;
+
+      --error: #f87171;
+    }
+
+    [data-theme="light"] {
+      color-scheme: light;
+
+      --bg-body: #f5f7fa;
+      --bg-card: #ffffff;
+      --bg-elevated: #f1f5f9;
+
+      --border: #e2e8f0;
+      --border-subtle: #eef2f6;
+
+      --text-heading: #0f172a;
+      --text-body: #334155;
+      --text-secondary: #64748b;
+      --text-tertiary: #475569;
+      --text-muted: #94a3b8;
+      --text-faint: #94a3b8;
+      --text-nodata: #cbd5e1;
+
+      --accent: #2563eb;
+      --accent-bright: #3b82f6;
+
+      --open-pill-bg: rgba(34, 197, 94, 0.1);
+      --open-text: #16a34a;
+      --open-pill-border: rgba(34, 197, 94, 0.25);
+      --closed-pill-bg: rgba(239, 68, 68, 0.08);
+      --closed-text: #dc2626;
+      --closed-pill-border: rgba(239, 68, 68, 0.15);
+      --nodata-pill-bg: rgba(100, 116, 139, 0.06);
+      --nodata-pill-text: #94a3b8;
+      --nodata-pill-border: rgba(100, 116, 139, 0.15);
+
+      --powder-bg: rgba(251, 191, 36, 0.1);
+      --powder-border: #f59e0b;
+      --powder-text: #92400e;
+
+      --backdrop: rgba(0, 0, 0, 0.35);
+
+      --cal-open-bg: rgba(34, 197, 94, 0.18);
+      --cal-closed-bg: rgba(239, 68, 68, 0.12);
+      --cal-dot-open: rgba(34, 197, 94, 0.5);
+      --cal-dot-closed: rgba(239, 68, 68, 0.3);
+
+      --snow-light-bg: rgba(37, 99, 235, 0.08);
+      --snow-light-text: #3b82f6;
+      --snow-med-bg: rgba(37, 99, 235, 0.18);
+      --snow-med-text: #2563eb;
+      --snow-heavy-bg: rgba(37, 99, 235, 0.30);
+      --snow-heavy-text: #1e3a5f;
+      --snow-dot: rgba(37, 99, 235, 0.5);
+
+      --cell-open-bg: rgba(34, 197, 94, 0.12);
+      --cell-closed-bg: rgba(239, 68, 68, 0.08);
+      --cell-snow: #2563eb;
+      --snow-row: #2563eb;
+
+      --error: #dc2626;
+    }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: #0f1923;
-      color: #e8edf2;
+      background: var(--bg-body);
+      color: var(--text-body);
       min-height: 100vh;
       padding: 24px 16px;
     }
@@ -18,20 +140,49 @@
     header {
       text-align: center;
       margin-bottom: 28px;
+      position: relative;
     }
 
     header h1 {
       font-size: 1.8rem;
       font-weight: 700;
       letter-spacing: -0.5px;
-      color: #fff;
+      color: var(--text-heading);
     }
 
     header p {
-      color: #7a8fa6;
+      color: var(--text-secondary);
       font-size: 0.9rem;
       margin-top: 4px;
     }
+
+    .theme-toggle {
+      position: absolute;
+      right: 0;
+      top: 4px;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 8px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1.1rem;
+      line-height: 1;
+      transition: border-color 0.15s, color 0.15s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .theme-toggle:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .theme-toggle .icon-sun { display: block; }
+    .theme-toggle .icon-moon { display: none; }
+    [data-theme="light"] .theme-toggle .icon-sun { display: none; }
+    [data-theme="light"] .theme-toggle .icon-moon { display: block; }
 
     .controls {
       display: flex;
@@ -44,13 +195,13 @@
 
     .controls label {
       font-size: 0.9rem;
-      color: #7a8fa6;
+      color: var(--text-secondary);
     }
 
     .controls input[type="date"] {
-      background: #1e2d3d;
-      border: 1px solid #2d4155;
-      color: #e8edf2;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-body);
       padding: 8px 14px;
       border-radius: 8px;
       font-size: 1rem;
@@ -59,13 +210,13 @@
 
     .controls input[type="date"]:focus {
       outline: none;
-      border-color: #4a9eff;
+      border-color: var(--accent);
     }
 
     .btn-today {
-      background: #1e2d3d;
-      border: 1px solid #2d4155;
-      color: #7a8fa6;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
       padding: 8px 14px;
       border-radius: 8px;
       font-size: 0.85rem;
@@ -74,8 +225,8 @@
     }
 
     .btn-today:hover {
-      border-color: #4a9eff;
-      color: #4a9eff;
+      border-color: var(--accent);
+      color: var(--accent);
     }
 
     .grid {
@@ -87,21 +238,21 @@
     }
 
     .resort-card {
-      background: #1a2535;
-      border: 1px solid #2d4155;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 14px;
       overflow: hidden;
     }
 
     .resort-header {
       padding: 16px 20px 14px;
-      border-bottom: 1px solid #2d4155;
+      border-bottom: 1px solid var(--border);
     }
 
     .resort-name {
       font-size: 1.1rem;
       font-weight: 700;
-      color: #fff;
+      color: var(--text-heading);
     }
 
     .snow-badge {
@@ -110,16 +261,26 @@
       gap: 5px;
       margin-top: 6px;
       font-size: 0.82rem;
-      color: #7a8fa6;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+
+    .snow-badge:hover {
+      color: var(--accent);
+    }
+
+    .snow-badge:hover .amount {
+      text-decoration: underline;
     }
 
     .snow-badge .amount {
-      color: #4a9eff;
+      color: var(--accent);
       font-weight: 600;
     }
 
     .snow-badge.has-snow .amount {
-      color: #60c8ff;
+      color: var(--accent-bright);
     }
 
     .terrain-list {
@@ -130,7 +291,7 @@
       display: flex;
       align-items: center;
       padding: 10px 20px;
-      border-bottom: 1px solid #1e2d3d;
+      border-bottom: 1px solid var(--border-subtle);
       gap: 10px;
       transition: background 0.1s;
     }
@@ -140,32 +301,32 @@
     }
 
     .terrain-row.powder-alert {
-      background: rgba(255, 200, 50, 0.06);
-      border-left: 3px solid #ffb800;
+      background: var(--powder-bg);
+      border-left: 3px solid var(--powder-border);
       padding-left: 17px;
     }
 
     .terrain-name {
       flex: 1;
       font-size: 0.9rem;
-      color: #c8d8e8;
+      color: var(--text-tertiary);
       cursor: pointer;
       transition: color 0.15s;
     }
 
     .terrain-name:hover {
-      color: #4a9eff;
+      color: var(--accent);
       text-decoration: underline;
     }
 
     .streak-badge {
       font-size: 0.75rem;
-      color: #4a6070;
+      color: var(--text-muted);
       white-space: nowrap;
     }
 
     .powder-alert .streak-badge {
-      color: #c8900a;
+      color: var(--powder-text);
     }
 
     .status-pill {
@@ -177,21 +338,21 @@
     }
 
     .status-pill.open {
-      background: rgba(34, 197, 94, 0.15);
-      color: #4ade80;
-      border: 1px solid rgba(34, 197, 94, 0.3);
+      background: var(--open-pill-bg);
+      color: var(--open-text);
+      border: 1px solid var(--open-pill-border);
     }
 
     .status-pill.closed {
-      background: rgba(239, 68, 68, 0.1);
-      color: #f87171;
-      border: 1px solid rgba(239, 68, 68, 0.2);
+      background: var(--closed-pill-bg);
+      color: var(--closed-text);
+      border: 1px solid var(--closed-pill-border);
     }
 
     .status-pill.no-data {
-      background: rgba(100, 116, 139, 0.1);
-      color: #64748b;
-      border: 1px solid rgba(100, 116, 139, 0.2);
+      background: var(--nodata-pill-bg);
+      color: var(--nodata-pill-text);
+      border: 1px solid var(--nodata-pill-border);
     }
 
     .powder-icon {
@@ -201,28 +362,28 @@
     .no-data-msg {
       padding: 24px 20px;
       text-align: center;
-      color: #4a6070;
+      color: var(--text-muted);
       font-size: 0.85rem;
     }
 
     .loading {
       text-align: center;
       padding: 60px;
-      color: #4a6070;
+      color: var(--text-muted);
       font-size: 0.9rem;
     }
 
     .error-msg {
       text-align: center;
       padding: 40px;
-      color: #f87171;
+      color: var(--error);
       font-size: 0.85rem;
     }
 
     footer {
       text-align: center;
       margin-top: 40px;
-      color: #344c5c;
+      color: var(--text-faint);
       font-size: 0.8rem;
     }
 
@@ -233,7 +394,7 @@
     }
 
     #history-section h2 {
-      color: #fff;
+      color: var(--text-heading);
       font-size: 1.3rem;
       margin-bottom: 16px;
       text-align: center;
@@ -241,9 +402,9 @@
 
     #history-table-wrap {
       overflow-x: auto;
-      border: 1px solid #2d4155;
+      border: 1px solid var(--border);
       border-radius: 14px;
-      background: #1a2535;
+      background: var(--bg-card);
       max-height: 600px;
       overflow-y: auto;
     }
@@ -258,13 +419,13 @@
     #history-table th,
     #history-table td {
       padding: 6px 10px;
-      border: 1px solid #1e2d3d;
+      border: 1px solid var(--border-subtle);
       text-align: center;
     }
 
     #history-table thead th {
-      background: #1e2d3d;
-      color: #7a8fa6;
+      background: var(--bg-elevated);
+      color: var(--text-secondary);
       position: sticky;
       top: 0;
       z-index: 2;
@@ -274,8 +435,8 @@
     #history-table .row-label {
       position: sticky;
       left: 0;
-      background: #1a2535;
-      color: #c8d8e8;
+      background: var(--bg-card);
+      color: var(--text-tertiary);
       text-align: left;
       font-weight: 500;
       z-index: 3;
@@ -285,13 +446,13 @@
     }
 
     #history-table .row-label:hover {
-      color: #4a9eff;
+      color: var(--accent);
       text-decoration: underline;
     }
 
     #history-table .resort-divider td {
-      background: #0f1923;
-      color: #4a9eff;
+      background: var(--bg-body);
+      color: var(--accent);
       font-weight: 700;
       font-size: 0.8rem;
       text-align: left;
@@ -305,22 +466,22 @@
       position: sticky;
       left: 0;
       z-index: 4;
-      background: #1e2d3d;
+      background: var(--bg-elevated);
     }
 
     .cell-open {
-      background: rgba(34, 197, 94, 0.2);
-      color: #4ade80;
+      background: var(--cell-open-bg);
+      color: var(--open-text);
     }
 
     .cell-closed {
-      background: rgba(239, 68, 68, 0.1);
-      color: #f87171;
+      background: var(--cell-closed-bg);
+      color: var(--closed-text);
     }
 
     .cell-nodata {
       background: transparent;
-      color: #2d4155;
+      color: var(--text-nodata);
     }
 
     /* ─── Calendar Modal ─── */
@@ -336,13 +497,13 @@
     #calendar-backdrop {
       position: absolute;
       inset: 0;
-      background: rgba(0, 0, 0, 0.65);
+      background: var(--backdrop);
     }
 
     #calendar-content {
       position: relative;
-      background: #1a2535;
-      border: 1px solid #2d4155;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
       border-radius: 14px;
       padding: 24px;
       min-width: 320px;
@@ -359,9 +520,9 @@
     }
 
     #calendar-header button {
-      background: #1e2d3d;
-      border: 1px solid #2d4155;
-      color: #7a8fa6;
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
       padding: 6px 12px;
       border-radius: 8px;
       cursor: pointer;
@@ -370,8 +531,8 @@
     }
 
     #calendar-header button:hover {
-      border-color: #4a9eff;
-      color: #4a9eff;
+      border-color: var(--accent);
+      color: var(--accent);
     }
 
     #cal-title {
@@ -379,12 +540,12 @@
       text-align: center;
       font-size: 1rem;
       font-weight: 600;
-      color: #fff;
+      color: var(--text-heading);
     }
 
     #cal-terrain-name {
       text-align: center;
-      color: #7a8fa6;
+      color: var(--text-secondary);
       font-size: 0.85rem;
       margin-bottom: 16px;
     }
@@ -398,7 +559,7 @@
     .cal-day-header {
       text-align: center;
       font-size: 0.7rem;
-      color: #4a6070;
+      color: var(--text-muted);
       font-weight: 600;
       padding: 4px 0;
     }
@@ -413,18 +574,34 @@
       font-weight: 500;
     }
 
+    .cal-day.snow-cell {
+      flex-direction: column;
+      line-height: 1.1;
+      gap: 0;
+    }
+
+    .cal-day.snow-cell .cal-day-num {
+      font-size: 0.65rem;
+      opacity: 0.7;
+    }
+
+    .cal-day.snow-cell .cal-day-snow {
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
     .cal-day.open {
-      background: rgba(34, 197, 94, 0.25);
-      color: #4ade80;
+      background: var(--cal-open-bg);
+      color: var(--open-text);
     }
 
     .cal-day.closed {
-      background: rgba(239, 68, 68, 0.15);
-      color: #f87171;
+      background: var(--cal-closed-bg);
+      color: var(--closed-text);
     }
 
     .cal-day.nodata {
-      color: #2d4155;
+      color: var(--text-nodata);
     }
 
     .cal-day.empty {
@@ -432,7 +609,7 @@
     }
 
     .cal-day.today {
-      border: 2px solid #4a9eff;
+      border: 2px solid var(--accent);
     }
 
     #cal-legend {
@@ -441,7 +618,7 @@
       gap: 16px;
       margin-top: 16px;
       font-size: 0.75rem;
-      color: #7a8fa6;
+      color: var(--text-secondary);
     }
 
     .cal-legend-item {
@@ -457,9 +634,379 @@
       display: inline-block;
     }
 
-    .cal-dot-open { background: rgba(34, 197, 94, 0.5); }
-    .cal-dot-closed { background: rgba(239, 68, 68, 0.3); }
-    .cal-dot-nodata { background: #2d4155; }
+    .cal-dot-open { background: var(--cal-dot-open); }
+    .cal-dot-closed { background: var(--cal-dot-closed); }
+    .cal-dot-nodata { background: var(--text-nodata); }
+
+    /* Snow calendar day cells */
+    .cal-day.snow-light {
+      background: var(--snow-light-bg);
+      color: var(--snow-light-text);
+    }
+
+    .cal-day.snow-medium {
+      background: var(--snow-med-bg);
+      color: var(--snow-med-text);
+    }
+
+    .cal-day.snow-heavy {
+      background: var(--snow-heavy-bg);
+      color: var(--snow-heavy-text);
+      font-weight: 700;
+    }
+
+    .cal-day.snow-none {
+      color: var(--text-nodata);
+    }
+
+    .cal-dot-snow { background: var(--snow-dot); }
+
+    /* Snow row in spreadsheet */
+    #history-table .snow-row td {
+      font-size: 0.65rem;
+      color: var(--snow-row);
+      padding: 3px 10px;
+    }
+
+    #history-table .snow-row .row-label {
+      font-size: 0.7rem;
+      color: var(--text-secondary);
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    .cell-snow {
+      color: var(--cell-snow) !important;
+      font-weight: 600;
+    }
+
+    .resort-divider-inner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .resort-divider-snow {
+      font-size: 0.7rem;
+      font-weight: 400;
+      color: var(--text-secondary);
+    }
+
+    /* ─── Weather Row in Resort Card ─── */
+    .weather-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    .weather-row .wx-forecast {
+      color: var(--text-tertiary);
+    }
+
+    /* ─── Snow Report Link ─── */
+    .snow-report-link {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 0.78rem;
+      color: var(--accent);
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+
+    .snow-report-link:hover {
+      color: var(--accent-bright);
+      text-decoration: underline;
+    }
+
+    /* ─── Text Modal (Snow Report / Digest) ─── */
+    .text-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .text-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: var(--backdrop);
+    }
+
+    .text-modal-content {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      max-width: 600px;
+      width: 90vw;
+      max-height: 80vh;
+      overflow-y: auto;
+      z-index: 1;
+      text-align: left;
+    }
+
+    .text-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .text-modal-header h3 {
+      color: var(--text-heading);
+      font-size: 1.1rem;
+    }
+
+    .text-modal-close {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.15s;
+    }
+
+    .text-modal-close:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .text-modal-body {
+      color: var(--text-body);
+      font-size: 0.85rem;
+      line-height: 1.6;
+      text-align: left;
+      font-weight: 400;
+    }
+
+    .snow-report-narrative {
+      font-size: 0.84rem;
+      line-height: 1.65;
+      color: var(--text-tertiary);
+      text-align: left;
+      font-weight: 400;
+      letter-spacing: 0;
+    }
+
+    .snow-report-narrative p {
+      margin-bottom: 12px;
+      font-size: 0.84rem;
+      font-weight: 400;
+      color: var(--text-tertiary);
+    }
+
+    .snow-report-narrative p:last-child {
+      margin-bottom: 0;
+    }
+
+    .snow-report-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+
+    .snow-metric {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 12px 14px;
+      text-align: center;
+    }
+
+    .snow-metric-label {
+      font-size: 0.72rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 4px;
+    }
+
+    .snow-metric-value {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: var(--text-heading);
+    }
+
+    .snow-report-empty {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 20px 0;
+    }
+
+    /* ─── Daily Digest Section ─── */
+    #digest-section {
+      max-width: 1200px;
+      margin: 0 auto 32px;
+    }
+
+    .digest-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 24px;
+    }
+
+    .digest-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .digest-header h2 {
+      color: var(--text-heading);
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .digest-date {
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+    }
+
+    .digest-body {
+      color: var(--text-body);
+      font-size: 0.88rem;
+      line-height: 1.7;
+    }
+
+    .digest-body h2 {
+      color: var(--text-heading);
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-top: 16px;
+      margin-bottom: 6px;
+    }
+
+    .digest-body ul {
+      padding-left: 20px;
+      margin: 4px 0;
+    }
+
+    .digest-body li {
+      margin-bottom: 4px;
+    }
+
+    .digest-empty {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 12px;
+    }
+
+    /* ─── Avalanche Section ─── */
+    #avalanche-section {
+      max-width: 1200px;
+      margin: 0 auto 32px;
+    }
+
+    .avy-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 24px;
+    }
+
+    .avy-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .avy-header h2 {
+      color: var(--text-heading);
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .avy-danger-badge {
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .avy-danger-low { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+    .avy-danger-moderate { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+    .avy-danger-considerable { background: rgba(249, 115, 22, 0.15); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+    .avy-danger-high { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .avy-danger-extreme { background: rgba(0, 0, 0, 0.3); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.5); }
+    .avy-danger-none { background: var(--nodata-pill-bg); color: var(--nodata-pill-text); border: 1px solid var(--nodata-pill-border); }
+
+    [data-theme="light"] .avy-danger-low { color: #16a34a; }
+    [data-theme="light"] .avy-danger-moderate { color: #a16207; }
+    [data-theme="light"] .avy-danger-considerable { color: #c2410c; }
+    [data-theme="light"] .avy-danger-high { color: #dc2626; }
+    [data-theme="light"] .avy-danger-extreme { color: #dc2626; }
+
+    .avy-summary {
+      color: var(--text-body);
+      font-size: 0.88rem;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+
+    .avy-link {
+      font-size: 0.82rem;
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .avy-link:hover {
+      color: var(--accent-bright);
+      text-decoration: underline;
+    }
+
+    .avy-problems {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .avy-problems-toggle {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 0.82rem;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.15s;
+    }
+
+    .avy-problems-toggle:hover {
+      color: var(--accent-bright);
+    }
+
+    .avy-problems-list {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      color: var(--text-tertiary);
+    }
+
+    .avy-problems-list li {
+      margin-bottom: 4px;
+    }
+
+    .avy-empty {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 12px;
+    }
   </style>
 </head>
 <body>
@@ -467,6 +1014,10 @@
 <header>
   <h1>Utah Ski Terrain Tracker</h1>
   <p>Powder-hunting intelligence for Snowbird, Solitude, Brighton &amp; Snowbasin</p>
+  <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode">
+    <svg class="icon-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    <svg class="icon-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+  </button>
 </header>
 
 <div class="controls">
@@ -475,8 +1026,47 @@
   <button class="btn-today" onclick="setToday()">Today</button>
 </div>
 
+<!-- Daily Digest -->
+<section id="digest-section" style="display:none;">
+  <div class="digest-card">
+    <div class="digest-header">
+      <h2>Daily Digest</h2>
+      <span class="digest-date" id="digest-date"></span>
+    </div>
+    <div id="digest-body" class="digest-body"></div>
+  </div>
+</section>
+
+<!-- Avalanche Forecast -->
+<section id="avalanche-section" style="display:none;">
+  <div class="avy-card">
+    <div class="avy-header">
+      <h2>Avalanche Forecast &mdash; Salt Lake Mountains</h2>
+      <span class="avy-danger-badge avy-danger-none" id="avy-badge">Loading...</span>
+    </div>
+    <div class="avy-summary" id="avy-summary"></div>
+    <div class="avy-problems" id="avy-problems" style="display:none;">
+      <button class="avy-problems-toggle" onclick="toggleAvyProblems()">Show avalanche problems</button>
+      <ul class="avy-problems-list" id="avy-problems-list" style="display:none;"></ul>
+    </div>
+    <a class="avy-link" href="https://utahavalanchecenter.org/forecast/salt-lake" target="_blank" rel="noopener">Full forecast at utahavalanchecenter.org &rarr;</a>
+  </div>
+</section>
+
 <div class="grid" id="resort-grid">
   <div class="loading">Loading terrain data...</div>
+</div>
+
+<!-- Snow Report Modal -->
+<div id="snow-report-modal" class="text-modal" style="display:none;">
+  <div class="text-modal-backdrop" onclick="closeSnowReport()"></div>
+  <div class="text-modal-content">
+    <div class="text-modal-header">
+      <h3 id="snow-report-title">Snow Report</h3>
+      <button class="text-modal-close" onclick="closeSnowReport()">&times;</button>
+    </div>
+    <div class="text-modal-body" id="snow-report-body">Loading...</div>
+  </div>
 </div>
 
 <section id="history-section" style="display:none;">
@@ -487,7 +1077,7 @@
 </section>
 
 <footer>
-  Updated hourly 9am - 4pm Mountain Time &nbsp;&middot;&nbsp; Click any terrain name for calendar view
+  Updated hourly 9am - 4pm Mountain Time &nbsp;&middot;&nbsp; Click terrain names or snow totals for calendar views
 </footer>
 
 <!-- Calendar Modal -->
@@ -511,6 +1101,22 @@
 </div>
 
 <script>
+  // ─── Theme Toggle ───
+
+  function toggleTheme() {
+    const html = document.documentElement;
+    const current = html.getAttribute('data-theme');
+    const next = current === 'light' ? 'dark' : 'light';
+    if (next === 'dark') {
+      html.removeAttribute('data-theme');
+    } else {
+      html.setAttribute('data-theme', 'light');
+    }
+    localStorage.setItem('theme', next);
+  }
+
+  // ─── Constants ───
+
   const RESORT_LABELS = {
     snowbird: 'Snowbird',
     solitude: 'Solitude',
@@ -563,12 +1169,27 @@
       const snow = resort.snow_24hr || 0;
       const hasSnow = snow > 0;
 
+      // Weather row
+      const wx = resort.weather;
+      let weatherHtml = '';
+      if (wx) {
+        const temp = wx.temperature_high ? `${wx.temperature_high}°F` : '';
+        const short = wx.short_forecast || '';
+        const wind = wx.wind || '';
+        const parts = [short, temp, wind].filter(Boolean);
+        weatherHtml = `<div class="weather-row"><span class="wx-forecast">${parts.join(' · ')}</span></div>`;
+      }
+
+      const selectedDate = document.getElementById('date-picker').value;
+
       card.innerHTML = `
         <div class="resort-header">
           <div class="resort-name">${RESORT_LABELS[resortKey] || resortKey}</div>
-          <div class="snow-badge ${hasSnow ? 'has-snow' : ''}">
+          <div class="snow-badge ${hasSnow ? 'has-snow' : ''}" onclick="openSnowCalendar('${resortKey}')" title="Click to see snow history">
             24hr snowfall: <span class="amount">${snow > 0 ? snow + '"' : 'None'}</span>
           </div>
+          ${weatherHtml}
+          <span class="snow-report-link" onclick="openSnowReport('${resortKey}', '${selectedDate}')">Snow Report</span>
         </div>
         <div class="terrain-list" id="terrain-${resortKey}"></div>
       `;
@@ -650,12 +1271,29 @@
 
     // Group terrain by resort in RESORT_ORDER
     const terrainKeys = Object.keys(data.terrain);
+    const snowData = data.snow || {};
     for (const resortKey of RESORT_ORDER) {
       const resortTerrains = terrainKeys.filter(k => k.startsWith(resortKey + '|'));
       if (resortTerrains.length === 0) continue;
 
-      // Resort divider row
-      html += `<tr class="resort-divider"><td colspan="${dates.length + 1}">${RESORT_LABELS[resortKey] || resortKey}</td></tr>`;
+      const resortSnow = snowData[resortKey] || {};
+
+      // Resort divider row with snow total
+      const totalSnow = Object.values(resortSnow).reduce((sum, v) => sum + (v || 0), 0);
+      const snowLabel = totalSnow > 0 ? `${Math.round(totalSnow)}" season total` : '';
+      html += `<tr class="resort-divider"><td colspan="${dates.length + 1}"><div class="resort-divider-inner">${RESORT_LABELS[resortKey] || resortKey}${snowLabel ? `<span class="resort-divider-snow">${snowLabel}</span>` : ''}</div></td></tr>`;
+
+      // Snow row
+      html += `<tr class="snow-row"><td class="row-label" onclick="openSnowCalendar('${resortKey}')" title="Click to see snow history">24hr Snow</td>`;
+      for (const d of dates) {
+        const snow = resortSnow[d];
+        if (snow && snow > 0) {
+          html += `<td class="cell-snow" title="${d}: ${snow}&quot;">${snow}"</td>`;
+        } else {
+          html += '<td class="cell-nodata">-</td>';
+        }
+      }
+      html += '</tr>';
 
       for (const key of resortTerrains) {
         const parts = key.split('|');
@@ -692,6 +1330,7 @@
   let calendarTerrain = '';
 
   function openCalendar(resort, terrain) {
+    isSnowCalendar = false;
     calendarResort = resort;
     calendarTerrain = terrain;
 
@@ -717,11 +1356,23 @@
 
   function closeCalendar() {
     document.getElementById('calendar-modal').style.display = 'none';
+    isSnowCalendar = false;
+    // Restore default legend
+    document.getElementById('cal-legend').innerHTML = `
+      <span class="cal-legend-item"><span class="cal-dot cal-dot-open"></span> Opened</span>
+      <span class="cal-legend-item"><span class="cal-dot cal-dot-closed"></span> Closed</span>
+      <span class="cal-legend-item"><span class="cal-dot cal-dot-nodata"></span> No data</span>
+    `;
   }
 
   function calNav(delta) {
-    calendarMonth.setMonth(calendarMonth.getMonth() + delta);
-    renderCalendar();
+    if (isSnowCalendar) {
+      snowCalendarMonth.setMonth(snowCalendarMonth.getMonth() + delta);
+      renderSnowCalendar();
+    } else {
+      calendarMonth.setMonth(calendarMonth.getMonth() + delta);
+      renderCalendar();
+    }
   }
 
   function renderCalendar() {
@@ -779,12 +1430,330 @@
     }
   }
 
+  // ─── Snow Calendar Modal ───
+
+  let snowCalendarData = {};
+  let snowCalendarMonth = null;
+  let snowCalendarResort = '';
+  let isSnowCalendar = false;
+
+  function openSnowCalendar(resort) {
+    snowCalendarResort = resort;
+    isSnowCalendar = true;
+
+    document.getElementById('cal-terrain-name').textContent =
+      `${RESORT_LABELS[resort] || resort} — 24hr Snowfall`;
+
+    fetch(`/api/snow-calendar?resort=${encodeURIComponent(resort)}`)
+      .then(r => r.json())
+      .then(data => {
+        snowCalendarData = data.days || {};
+        const allDates = Object.keys(snowCalendarData).sort();
+        if (allDates.length > 0) {
+          const last = allDates[allDates.length - 1];
+          snowCalendarMonth = new Date(last + 'T00:00:00');
+        } else {
+          snowCalendarMonth = new Date();
+        }
+        snowCalendarMonth.setDate(1);
+        renderSnowCalendar();
+        document.getElementById('calendar-modal').style.display = 'flex';
+
+        // Update legend for snow mode
+        document.getElementById('cal-legend').innerHTML = `
+          <span class="cal-legend-item"><span class="cal-dot cal-dot-snow"></span> Snowfall</span>
+          <span class="cal-legend-item"><span class="cal-dot cal-dot-nodata"></span> No snow</span>
+        `;
+      });
+  }
+
+  function renderSnowCalendar() {
+    const year = snowCalendarMonth.getFullYear();
+    const month = snowCalendarMonth.getMonth();
+
+    const monthNames = ['January','February','March','April','May','June',
+                        'July','August','September','October','November','December'];
+    document.getElementById('cal-title').textContent = `${monthNames[month]} ${year}`;
+
+    const grid = document.getElementById('cal-grid');
+    grid.innerHTML = '';
+
+    const dayNames = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+    for (const dn of dayNames) {
+      const el = document.createElement('div');
+      el.className = 'cal-day-header';
+      el.textContent = dn;
+      grid.appendChild(el);
+    }
+
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const todayStr = formatDate(new Date());
+
+    for (let i = 0; i < firstDay; i++) {
+      const el = document.createElement('div');
+      el.className = 'cal-day empty';
+      grid.appendChild(el);
+    }
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      const el = document.createElement('div');
+      const snow = snowCalendarData[dateStr] || 0;
+
+      let cls = 'cal-day';
+      if (snow >= 6) {
+        cls += ' snow-heavy';
+      } else if (snow >= 2) {
+        cls += ' snow-medium';
+      } else if (snow > 0) {
+        cls += ' snow-light';
+      } else {
+        cls += ' snow-none';
+      }
+      if (dateStr === todayStr) {
+        cls += ' today';
+      }
+
+      cls += ' snow-cell';
+      el.className = cls;
+      const dayNum = document.createElement('span');
+      dayNum.className = 'cal-day-num';
+      dayNum.textContent = d;
+      const snowVal = document.createElement('span');
+      snowVal.className = 'cal-day-snow';
+      snowVal.textContent = snow > 0 ? snow + '"' : '—';
+      el.appendChild(dayNum);
+      el.appendChild(snowVal);
+      el.title = snow > 0 ? `${dateStr}: ${snow}" snowfall` : dateStr;
+      grid.appendChild(el);
+    }
+  }
+
+  // ─── Snow Report Modal ───
+
+  function openSnowReport(resort, date) {
+    const modal = document.getElementById('snow-report-modal');
+    const title = document.getElementById('snow-report-title');
+    const body = document.getElementById('snow-report-body');
+
+    title.textContent = `${RESORT_LABELS[resort] || resort} — Snow Report`;
+    body.innerHTML = '<div class="snow-report-empty">Loading...</div>';
+    modal.style.display = 'flex';
+
+    fetch(`/api/snow-report?resort=${encodeURIComponent(resort)}&date=${date}`)
+      .then(r => r.json())
+      .then(data => {
+        const text = data.report_text || '';
+        if (!text.trim()) {
+          body.innerHTML = '<div class="snow-report-empty">No snow report available for this date.</div>';
+          return;
+        }
+
+        // Detect structured metrics: must have 2+ short lines like "24hr Snowfall: 4"
+        const lines = text.split('\n').filter(l => l.trim());
+        const metrics = [];
+        if (lines.length >= 2) {
+          for (const line of lines) {
+            const match = line.match(/^([A-Za-z\s]{3,25}):\s*(-?\d[\d.]*[°"℉]?\s*\w{0,2})$/);
+            if (match) {
+              metrics.push({ label: match[1].trim(), value: match[2].trim() });
+            }
+          }
+        }
+
+        if (metrics.length >= 2 && metrics.length >= lines.length * 0.5) {
+          body.innerHTML = '<div class="snow-report-grid">' +
+            metrics.map(m =>
+              `<div class="snow-metric">
+                <div class="snow-metric-label">${m.label}</div>
+                <div class="snow-metric-value">${m.value}</div>
+              </div>`
+            ).join('') +
+            '</div>';
+        } else {
+          // Narrative text — clean junk and break into readable paragraphs
+          let cleaned = text
+            .replace(/#\w+>?\s*/g, '')
+            .replace(/View full mountain report.*/gi, '')
+            .replace(/Watch Live Webcams?.*/gi, '')
+            .replace(/See (the )?Full Report.*/gi, '')
+            .trim();
+
+          // Detect concatenated garbage text (e.g. "Current31°FPartly CloudyWind: 4 mph NE...")
+          // by checking for words mashed with numbers/symbols and very long "words"
+          const words = cleaned.split(/\s+/);
+          const garbledCount = words.filter(w =>
+            w.length > 20 || /[a-z][A-Z]/.test(w) || /[a-zA-Z]\d+°/.test(w) || /\d[a-zA-Z]{3,}/.test(w)
+          ).length;
+          const isGarbled = words.length > 0 && (garbledCount / words.length) > 0.15;
+
+          if (isGarbled) {
+            // Try to extract any readable metrics from the garbled text
+            const metricPatterns = [
+              { label: '24hr Snowfall', pattern: /(\d+)\s*(?:"|in|inches?)?\s*(?:in\s+)?(?:the\s+)?(?:last|past)?\s*24/i },
+              { label: '24hr Snowfall', pattern: /24\s*(?:hr|hour)s?\s*(?:snow(?:fall)?)?[:\s]*(\d+)/i },
+              { label: '48hr Snowfall', pattern: /48\s*(?:hr|hour)s?\s*(?:snow(?:fall)?)?[:\s]*(\d+)/i },
+              { label: 'Base Depth', pattern: /(?:base|mid)\s*(?:mountain\s*)?depth[:\s]*(\d+)/i },
+              { label: 'Temperature', pattern: /(?:Current|Summit|Base|Mid)\s*(?:Temp)?[:\s]*(-?\d+)\s*°?\s*F/i },
+              { label: 'Wind', pattern: /Wind[:\s]*(\d+\s*mph\s*[NESW]{1,3})/i },
+              { label: 'Season Total', pattern: /Season\s*(?:Total|Snow(?:fall)?)[:\s]*(\d+)/i },
+            ];
+            const extracted = [];
+            for (const mp of metricPatterns) {
+              const m = cleaned.match(mp.pattern);
+              if (m) extracted.push({ label: mp.label, value: m[1].trim() });
+            }
+            if (extracted.length >= 1) {
+              body.innerHTML = '<div class="snow-report-grid">' +
+                extracted.map(m =>
+                  `<div class="snow-metric">
+                    <div class="snow-metric-label">${m.label}</div>
+                    <div class="snow-metric-value">${m.value}</div>
+                  </div>`
+                ).join('') +
+                '</div>';
+            } else {
+              body.innerHTML = '<div class="snow-report-empty">No formatted snow report available for this date. Check back after the next data refresh.</div>';
+            }
+          } else {
+            // Split into sentences, then filter out junk sentences
+            const junkPattern = /cookie|privacy|copyright|©|traffic source|advertising partner|store.*on your browser|count visits|personalized ad|book.*night.*lodging|fourth night.*free|target audience|relevant ad|opt.out|data processing|consent|do not sell/i;
+
+            const allSentences = cleaned.split(/(?<=\.)\s+/).filter(s => s.trim().length > 5);
+            const goodSentences = allSentences.filter(s => !junkPattern.test(s));
+
+            // Group into paragraphs of ~3 sentences
+            let paras = [];
+            for (let i = 0; i < goodSentences.length; i += 3) {
+              paras.push(goodSentences.slice(i, i + 3).join(' '));
+            }
+            if (paras.length === 0) paras = [cleaned];
+
+            body.innerHTML = '<div class="snow-report-narrative">' +
+              paras.map(p =>
+                '<p>' + p.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
+              ).join('') +
+              '</div>';
+          }
+        }
+      })
+      .catch(() => {
+        body.innerHTML = '<div class="snow-report-empty">Failed to load snow report.</div>';
+      });
+  }
+
+  function closeSnowReport() {
+    document.getElementById('snow-report-modal').style.display = 'none';
+  }
+
+  // ─── Avalanche Forecast ───
+
+  function loadAvalanche(date) {
+    fetch(`/api/avalanche?date=${date}`)
+      .then(r => r.json())
+      .then(data => {
+        const section = document.getElementById('avalanche-section');
+        if (!data || Object.keys(data).length === 0) {
+          section.style.display = 'none';
+          return;
+        }
+        section.style.display = '';
+
+        const badge = document.getElementById('avy-badge');
+        const danger = data.overall_danger || 'No Rating';
+        badge.textContent = danger;
+        if (danger === 'No Rating') {
+          badge.className = 'avy-danger-badge avy-danger-none';
+        } else {
+          badge.className = 'avy-danger-badge avy-danger-' + danger.toLowerCase().replace(/\s+/g, '');
+        }
+
+        const summary = document.getElementById('avy-summary');
+        const bottomLine = data.bottom_line || '';
+        if (bottomLine) {
+          summary.textContent = bottomLine;
+        } else if (danger === 'No Rating') {
+          summary.textContent = 'No avalanche forecast available for this date. Check utahavalanchecenter.org for the latest.';
+        } else {
+          summary.textContent = '';
+        }
+
+        // Parse problems from forecast_json
+        const problemsDiv = document.getElementById('avy-problems');
+        const problemsList = document.getElementById('avy-problems-list');
+        try {
+          const forecast = JSON.parse(data.forecast_json || '{}');
+          const problems = forecast.problems || [];
+          if (problems.length > 0) {
+            problemsDiv.style.display = '';
+            problemsList.innerHTML = problems.map(p =>
+              `<li>${p.type}${p.likelihood ? ` — ${p.likelihood}` : ''}</li>`
+            ).join('');
+          } else {
+            problemsDiv.style.display = 'none';
+          }
+        } catch (e) {
+          problemsDiv.style.display = 'none';
+        }
+      })
+      .catch(() => {
+        document.getElementById('avalanche-section').style.display = 'none';
+      });
+  }
+
+  function toggleAvyProblems() {
+    const list = document.getElementById('avy-problems-list');
+    const btn = document.querySelector('.avy-problems-toggle');
+    if (list.style.display === 'none') {
+      list.style.display = '';
+      btn.textContent = 'Hide avalanche problems';
+    } else {
+      list.style.display = 'none';
+      btn.textContent = 'Show avalanche problems';
+    }
+  }
+
+  // ─── Daily Digest ───
+
+  function loadDigest(date) {
+    fetch(`/api/digest?date=${date}`)
+      .then(r => r.json())
+      .then(data => {
+        const section = document.getElementById('digest-section');
+        if (!data || !data.digest_text) {
+          section.style.display = 'none';
+          return;
+        }
+        section.style.display = '';
+        document.getElementById('digest-date').textContent = date;
+
+        // Simple markdown-ish rendering
+        const body = document.getElementById('digest-body');
+        let html = data.digest_text
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+          .replace(/^- (.+)$/gm, '<li>$1</li>')
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\n\n/g, '<br><br>');
+        // Wrap consecutive <li> in <ul>
+        html = html.replace(/((?:<li>.*<\/li>\s*)+)/g, '<ul>$1</ul>');
+        body.innerHTML = html;
+      })
+      .catch(() => {
+        document.getElementById('digest-section').style.display = 'none';
+      });
+  }
+
   // Close modal on backdrop click
   document.getElementById('calendar-backdrop').addEventListener('click', closeCalendar);
 
-  // Close modal on Escape key
+  // Close modals on Escape key
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeCalendar();
+    if (e.key === 'Escape') {
+      closeCalendar();
+      closeSnowReport();
+    }
   });
 
   // ─── Initialize ───
@@ -795,10 +1764,16 @@
   picker.max = today;
 
   picker.addEventListener('change', () => {
-    if (picker.value) loadData(picker.value);
+    if (picker.value) {
+      loadData(picker.value);
+      loadAvalanche(picker.value);
+      loadDigest(picker.value);
+    }
   });
 
   loadData(today);
+  loadAvalanche(today);
+  loadDigest(today);
   loadHistory();
 </script>
 

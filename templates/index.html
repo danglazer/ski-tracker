@@ -691,6 +691,266 @@
       font-weight: 400;
       color: var(--text-secondary);
     }
+
+    /* ─── Weather Row in Resort Card ─── */
+    .weather-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 0.78rem;
+      color: var(--text-secondary);
+    }
+
+    .weather-row .wx-forecast {
+      color: var(--text-tertiary);
+    }
+
+    /* ─── Snow Report Link ─── */
+    .snow-report-link {
+      display: inline-block;
+      margin-top: 6px;
+      font-size: 0.78rem;
+      color: var(--accent);
+      cursor: pointer;
+      transition: color 0.15s;
+    }
+
+    .snow-report-link:hover {
+      color: var(--accent-bright);
+      text-decoration: underline;
+    }
+
+    /* ─── Text Modal (Snow Report / Digest) ─── */
+    .text-modal {
+      position: fixed;
+      inset: 0;
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .text-modal-backdrop {
+      position: absolute;
+      inset: 0;
+      background: var(--backdrop);
+    }
+
+    .text-modal-content {
+      position: relative;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      max-width: 600px;
+      width: 90vw;
+      max-height: 80vh;
+      overflow-y: auto;
+      z-index: 1;
+    }
+
+    .text-modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .text-modal-header h3 {
+      color: var(--text-heading);
+      font-size: 1.1rem;
+    }
+
+    .text-modal-close {
+      background: var(--bg-elevated);
+      border: 1px solid var(--border);
+      color: var(--text-secondary);
+      padding: 6px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      transition: all 0.15s;
+    }
+
+    .text-modal-close:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .text-modal-body {
+      color: var(--text-body);
+      font-size: 0.9rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    /* ─── Daily Digest Section ─── */
+    #digest-section {
+      max-width: 800px;
+      margin: 0 auto 32px;
+    }
+
+    .digest-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 24px;
+    }
+
+    .digest-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .digest-header h2 {
+      color: var(--text-heading);
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .digest-date {
+      color: var(--text-secondary);
+      font-size: 0.82rem;
+    }
+
+    .digest-body {
+      color: var(--text-body);
+      font-size: 0.88rem;
+      line-height: 1.7;
+    }
+
+    .digest-body h2 {
+      color: var(--text-heading);
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-top: 16px;
+      margin-bottom: 6px;
+    }
+
+    .digest-body ul {
+      padding-left: 20px;
+      margin: 4px 0;
+    }
+
+    .digest-body li {
+      margin-bottom: 4px;
+    }
+
+    .digest-empty {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 12px;
+    }
+
+    /* ─── Avalanche Section ─── */
+    #avalanche-section {
+      max-width: 800px;
+      margin: 0 auto 32px;
+    }
+
+    .avy-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px 24px;
+    }
+
+    .avy-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .avy-header h2 {
+      color: var(--text-heading);
+      font-size: 1.1rem;
+      font-weight: 700;
+    }
+
+    .avy-danger-badge {
+      font-size: 0.82rem;
+      font-weight: 700;
+      padding: 4px 14px;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .avy-danger-low { background: rgba(34, 197, 94, 0.15); color: #4ade80; border: 1px solid rgba(34, 197, 94, 0.3); }
+    .avy-danger-moderate { background: rgba(234, 179, 8, 0.15); color: #facc15; border: 1px solid rgba(234, 179, 8, 0.3); }
+    .avy-danger-considerable { background: rgba(249, 115, 22, 0.15); color: #fb923c; border: 1px solid rgba(249, 115, 22, 0.3); }
+    .avy-danger-high { background: rgba(239, 68, 68, 0.15); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.3); }
+    .avy-danger-extreme { background: rgba(0, 0, 0, 0.3); color: #f87171; border: 1px solid rgba(239, 68, 68, 0.5); }
+    .avy-danger-none { background: var(--nodata-pill-bg); color: var(--nodata-pill-text); border: 1px solid var(--nodata-pill-border); }
+
+    [data-theme="light"] .avy-danger-low { color: #16a34a; }
+    [data-theme="light"] .avy-danger-moderate { color: #a16207; }
+    [data-theme="light"] .avy-danger-considerable { color: #c2410c; }
+    [data-theme="light"] .avy-danger-high { color: #dc2626; }
+    [data-theme="light"] .avy-danger-extreme { color: #dc2626; }
+
+    .avy-summary {
+      color: var(--text-body);
+      font-size: 0.88rem;
+      line-height: 1.6;
+      margin-bottom: 12px;
+    }
+
+    .avy-link {
+      font-size: 0.82rem;
+      color: var(--accent);
+      text-decoration: none;
+      transition: color 0.15s;
+    }
+
+    .avy-link:hover {
+      color: var(--accent-bright);
+      text-decoration: underline;
+    }
+
+    .avy-problems {
+      margin-top: 12px;
+      padding-top: 12px;
+      border-top: 1px solid var(--border-subtle);
+    }
+
+    .avy-problems-toggle {
+      background: none;
+      border: none;
+      color: var(--accent);
+      font-size: 0.82rem;
+      cursor: pointer;
+      padding: 0;
+      transition: color 0.15s;
+    }
+
+    .avy-problems-toggle:hover {
+      color: var(--accent-bright);
+    }
+
+    .avy-problems-list {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      color: var(--text-tertiary);
+    }
+
+    .avy-problems-list li {
+      margin-bottom: 4px;
+    }
+
+    .avy-empty {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 12px;
+    }
   </style>
 </head>
 <body>
@@ -710,8 +970,47 @@
   <button class="btn-today" onclick="setToday()">Today</button>
 </div>
 
+<!-- Daily Digest -->
+<section id="digest-section" style="display:none;">
+  <div class="digest-card">
+    <div class="digest-header">
+      <h2>Daily Digest</h2>
+      <span class="digest-date" id="digest-date"></span>
+    </div>
+    <div id="digest-body" class="digest-body"></div>
+  </div>
+</section>
+
+<!-- Avalanche Forecast -->
+<section id="avalanche-section" style="display:none;">
+  <div class="avy-card">
+    <div class="avy-header">
+      <h2>Avalanche Forecast &mdash; Salt Lake Mountains</h2>
+      <span class="avy-danger-badge avy-danger-none" id="avy-badge">Loading...</span>
+    </div>
+    <div class="avy-summary" id="avy-summary"></div>
+    <div class="avy-problems" id="avy-problems" style="display:none;">
+      <button class="avy-problems-toggle" onclick="toggleAvyProblems()">Show avalanche problems</button>
+      <ul class="avy-problems-list" id="avy-problems-list" style="display:none;"></ul>
+    </div>
+    <a class="avy-link" href="https://utahavalanchecenter.org/forecast/salt-lake" target="_blank" rel="noopener">Full forecast at utahavalanchecenter.org &rarr;</a>
+  </div>
+</section>
+
 <div class="grid" id="resort-grid">
   <div class="loading">Loading terrain data...</div>
+</div>
+
+<!-- Snow Report Modal -->
+<div id="snow-report-modal" class="text-modal" style="display:none;">
+  <div class="text-modal-backdrop" onclick="closeSnowReport()"></div>
+  <div class="text-modal-content">
+    <div class="text-modal-header">
+      <h3 id="snow-report-title">Snow Report</h3>
+      <button class="text-modal-close" onclick="closeSnowReport()">&times;</button>
+    </div>
+    <div class="text-modal-body" id="snow-report-body">Loading...</div>
+  </div>
 </div>
 
 <section id="history-section" style="display:none;">
@@ -814,12 +1113,27 @@
       const snow = resort.snow_24hr || 0;
       const hasSnow = snow > 0;
 
+      // Weather row
+      const wx = resort.weather;
+      let weatherHtml = '';
+      if (wx) {
+        const temp = wx.temperature_high ? `${wx.temperature_high}°F` : '';
+        const short = wx.short_forecast || '';
+        const wind = wx.wind || '';
+        const parts = [short, temp, wind].filter(Boolean);
+        weatherHtml = `<div class="weather-row"><span class="wx-forecast">${parts.join(' · ')}</span></div>`;
+      }
+
+      const selectedDate = document.getElementById('date-picker').value;
+
       card.innerHTML = `
         <div class="resort-header">
           <div class="resort-name">${RESORT_LABELS[resortKey] || resortKey}</div>
           <div class="snow-badge ${hasSnow ? 'has-snow' : ''}" onclick="openSnowCalendar('${resortKey}')" title="Click to see snow history">
             24hr snowfall: <span class="amount">${snow > 0 ? snow + '"' : 'None'}</span>
           </div>
+          ${weatherHtml}
+          <span class="snow-report-link" onclick="openSnowReport('${resortKey}', '${selectedDate}')">Snow Report</span>
         </div>
         <div class="terrain-list" id="terrain-${resortKey}"></div>
       `;
@@ -1160,12 +1474,129 @@
     }
   }
 
+  // ─── Snow Report Modal ───
+
+  function openSnowReport(resort, date) {
+    const modal = document.getElementById('snow-report-modal');
+    const title = document.getElementById('snow-report-title');
+    const body = document.getElementById('snow-report-body');
+
+    title.textContent = `${RESORT_LABELS[resort] || resort} — Snow Report (${date})`;
+    body.textContent = 'Loading...';
+    modal.style.display = 'flex';
+
+    fetch(`/api/snow-report?resort=${encodeURIComponent(resort)}&date=${date}`)
+      .then(r => r.json())
+      .then(data => {
+        body.textContent = data.report_text || 'No snow report available for this date.';
+      })
+      .catch(() => {
+        body.textContent = 'Failed to load snow report.';
+      });
+  }
+
+  function closeSnowReport() {
+    document.getElementById('snow-report-modal').style.display = 'none';
+  }
+
+  // ─── Avalanche Forecast ───
+
+  function loadAvalanche(date) {
+    fetch(`/api/avalanche?date=${date}`)
+      .then(r => r.json())
+      .then(data => {
+        const section = document.getElementById('avalanche-section');
+        if (!data || !data.overall_danger) {
+          section.style.display = 'none';
+          return;
+        }
+        section.style.display = '';
+
+        const badge = document.getElementById('avy-badge');
+        const danger = data.overall_danger || 'No Rating';
+        badge.textContent = danger;
+        badge.className = 'avy-danger-badge avy-danger-' + danger.toLowerCase().replace(/\s+/g, '');
+        // Map "No Rating" to "none"
+        if (danger === 'No Rating') badge.className = 'avy-danger-badge avy-danger-none';
+
+        const summary = document.getElementById('avy-summary');
+        summary.textContent = data.bottom_line || '';
+
+        // Parse problems from forecast_json
+        const problemsDiv = document.getElementById('avy-problems');
+        const problemsList = document.getElementById('avy-problems-list');
+        try {
+          const forecast = JSON.parse(data.forecast_json || '{}');
+          const problems = forecast.problems || [];
+          if (problems.length > 0) {
+            problemsDiv.style.display = '';
+            problemsList.innerHTML = problems.map(p =>
+              `<li>${p.type}${p.likelihood ? ` — ${p.likelihood}` : ''}</li>`
+            ).join('');
+          } else {
+            problemsDiv.style.display = 'none';
+          }
+        } catch (e) {
+          problemsDiv.style.display = 'none';
+        }
+      })
+      .catch(() => {
+        document.getElementById('avalanche-section').style.display = 'none';
+      });
+  }
+
+  function toggleAvyProblems() {
+    const list = document.getElementById('avy-problems-list');
+    const btn = document.querySelector('.avy-problems-toggle');
+    if (list.style.display === 'none') {
+      list.style.display = '';
+      btn.textContent = 'Hide avalanche problems';
+    } else {
+      list.style.display = 'none';
+      btn.textContent = 'Show avalanche problems';
+    }
+  }
+
+  // ─── Daily Digest ───
+
+  function loadDigest(date) {
+    fetch(`/api/digest?date=${date}`)
+      .then(r => r.json())
+      .then(data => {
+        const section = document.getElementById('digest-section');
+        if (!data || !data.digest_text) {
+          section.style.display = 'none';
+          return;
+        }
+        section.style.display = '';
+        document.getElementById('digest-date').textContent = date;
+
+        // Simple markdown-ish rendering
+        const body = document.getElementById('digest-body');
+        let html = data.digest_text
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+          .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+          .replace(/^- (.+)$/gm, '<li>$1</li>')
+          .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+          .replace(/\n\n/g, '<br><br>');
+        // Wrap consecutive <li> in <ul>
+        html = html.replace(/((?:<li>.*<\/li>\s*)+)/g, '<ul>$1</ul>');
+        body.innerHTML = html;
+      })
+      .catch(() => {
+        document.getElementById('digest-section').style.display = 'none';
+      });
+  }
+
   // Close modal on backdrop click
   document.getElementById('calendar-backdrop').addEventListener('click', closeCalendar);
 
-  // Close modal on Escape key
+  // Close modals on Escape key
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') closeCalendar();
+    if (e.key === 'Escape') {
+      closeCalendar();
+      closeSnowReport();
+    }
   });
 
   // ─── Initialize ───
@@ -1176,10 +1607,16 @@
   picker.max = today;
 
   picker.addEventListener('change', () => {
-    if (picker.value) loadData(picker.value);
+    if (picker.value) {
+      loadData(picker.value);
+      loadAvalanche(picker.value);
+      loadDigest(picker.value);
+    }
   });
 
   loadData(today);
+  loadAvalanche(today);
+  loadDigest(today);
   loadHistory();
 </script>
 

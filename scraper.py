@@ -92,6 +92,7 @@ def scrape_snowbird(page):
         log(f"[snowbird] Terrain done: {terrain_results}")
 
         snow_24hr = 0.0
+        report_text = ""
         try:
             log("[snowbird] Loading conditions page...")
             page.goto(conditions_url, timeout=60000)
@@ -104,12 +105,42 @@ def scrape_snowbird(page):
                 m2 = re.search(r"([\d.]+)\s*[\"″]\s*24", text)
                 if m2:
                     snow_24hr = float(m2.group(1))
+            # Extract narrative snow report
+            try:
+                report_text = page.evaluate("""
+                    () => {
+                        // Look for narrative/report sections
+                        const selectors = [
+                            '.conditions-report', '.morning-report', '.snow-report',
+                            '[class*="report"]', '[class*="narrative"]', '[class*="condition"]'
+                        ];
+                        for (const sel of selectors) {
+                            const el = document.querySelector(sel);
+                            if (el && el.textContent.trim().length > 50) {
+                                return el.textContent.trim();
+                            }
+                        }
+                        // Fallback: grab main content paragraphs
+                        const paragraphs = document.querySelectorAll('p');
+                        const texts = [];
+                        for (const p of paragraphs) {
+                            const t = p.textContent.trim();
+                            if (t.length > 40 && !t.match(/^(\\d|copyright|©|privacy|cookie)/i)) {
+                                texts.push(t);
+                            }
+                        }
+                        return texts.slice(0, 5).join('\\n\\n');
+                    }
+                """)
+            except Exception:
+                pass
         except Exception as e:
             log(f"[snowbird] Failed to get snow data: {e}")
 
-        log(f"[snowbird] Done. Snow: {snow_24hr}")
+        log(f"[snowbird] Done. Snow: {snow_24hr}, Report: {len(report_text)} chars")
         return {
             "snow_24hr": snow_24hr,
+            "report_text": report_text,
             "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["snowbird"]],
         }
 
@@ -166,6 +197,7 @@ def scrape_brighton(page):
         log(f"[brighton] Terrain done: {terrain_results}")
 
         snow_24hr = 0.0
+        report_text = ""
         try:
             text = page.inner_text("body")
             m = re.search(r"([\d.]+)[\"″\s]*Snow\s*24\s*Hrs", text, re.IGNORECASE)
@@ -175,12 +207,40 @@ def scrape_brighton(page):
                 m2 = re.search(r"Snow\s*24\s*Hrs[.\s]*([\d.]+)", text, re.IGNORECASE)
                 if m2:
                     snow_24hr = float(m2.group(1))
+            # Extract narrative snow report
+            try:
+                report_text = page.evaluate("""
+                    () => {
+                        const selectors = [
+                            '.conditions-report', '.morning-report', '.snow-report',
+                            '[class*="report"]', '[class*="comment"]', '[class*="condition"]'
+                        ];
+                        for (const sel of selectors) {
+                            const el = document.querySelector(sel);
+                            if (el && el.textContent.trim().length > 50) {
+                                return el.textContent.trim();
+                            }
+                        }
+                        const paragraphs = document.querySelectorAll('p');
+                        const texts = [];
+                        for (const p of paragraphs) {
+                            const t = p.textContent.trim();
+                            if (t.length > 40 && !t.match(/^(\\d|copyright|©|privacy|cookie)/i)) {
+                                texts.push(t);
+                            }
+                        }
+                        return texts.slice(0, 5).join('\\n\\n');
+                    }
+                """)
+            except Exception:
+                pass
         except Exception as e:
             log(f"[brighton] Failed to get snow data: {e}")
 
-        log(f"[brighton] Done. Snow: {snow_24hr}")
+        log(f"[brighton] Done. Snow: {snow_24hr}, Report: {len(report_text)} chars")
         return {
             "snow_24hr": snow_24hr,
+            "report_text": report_text,
             "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["brighton"]],
         }
 
@@ -226,9 +286,24 @@ def scrape_snowbasin():
             if m2:
                 snow_24hr = float(m2.group(1))
 
-        log(f"[snowbasin] Done. Terrain: {terrain_results}, Snow: {snow_24hr}")
+        # Extract narrative snow report
+        report_text = ""
+        report_el = soup.find(class_=re.compile(r"report|narrative|condition|morning", re.IGNORECASE))
+        if report_el and len(report_el.get_text(strip=True)) > 50:
+            report_text = report_el.get_text(strip=True)
+        else:
+            paragraphs = soup.find_all("p")
+            texts = []
+            for p in paragraphs:
+                t = p.get_text(strip=True)
+                if len(t) > 40 and not re.match(r"^(\d|copyright|©|privacy|cookie)", t, re.IGNORECASE):
+                    texts.append(t)
+            report_text = "\n\n".join(texts[:5])
+
+        log(f"[snowbasin] Done. Terrain: {terrain_results}, Snow: {snow_24hr}, Report: {len(report_text)} chars")
         return {
             "snow_24hr": snow_24hr,
+            "report_text": report_text,
             "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["snowbasin"]],
         }
 
@@ -298,9 +373,39 @@ def scrape_solitude(page):
                 if m3:
                     snow_24hr = float(m3.group(1))
 
-        log(f"[solitude] Done. Terrain: {terrain_results}, Snow: {snow_24hr}")
+        # Extract narrative snow report
+        report_text = ""
+        try:
+            report_text = page.evaluate("""
+                () => {
+                    const selectors = [
+                        '.conditions-report', '.morning-report', '.snow-report',
+                        '[class*="report"]', '[class*="narrative"]', '[class*="condition"]'
+                    ];
+                    for (const sel of selectors) {
+                        const el = document.querySelector(sel);
+                        if (el && el.textContent.trim().length > 50) {
+                            return el.textContent.trim();
+                        }
+                    }
+                    const paragraphs = document.querySelectorAll('p');
+                    const texts = [];
+                    for (const p of paragraphs) {
+                        const t = p.textContent.trim();
+                        if (t.length > 40 && !t.match(/^(\\d|copyright|©|privacy|cookie)/i)) {
+                            texts.push(t);
+                        }
+                    }
+                    return texts.slice(0, 5).join('\\n\\n');
+                }
+            """)
+        except Exception:
+            pass
+
+        log(f"[solitude] Done. Terrain: {terrain_results}, Snow: {snow_24hr}, Report: {len(report_text)} chars")
         return {
             "snow_24hr": snow_24hr,
+            "report_text": report_text,
             "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["solitude"]],
         }
 

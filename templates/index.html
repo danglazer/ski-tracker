@@ -780,8 +780,26 @@
 
     .text-modal-body {
       color: var(--text-body);
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       line-height: 1.6;
+      text-align: left;
+      font-weight: 400;
+    }
+
+    .snow-report-narrative {
+      font-size: 0.85rem;
+      line-height: 1.7;
+      color: var(--text-body);
+      text-align: left;
+      font-weight: 400;
+    }
+
+    .snow-report-narrative p {
+      margin-bottom: 10px;
+    }
+
+    .snow-report-narrative p:last-child {
+      margin-bottom: 0;
     }
 
     .snow-report-grid {
@@ -1547,8 +1565,25 @@
             ).join('') +
             '</div>';
         } else {
-          // Fallback for non-structured text
-          body.textContent = text;
+          // Narrative text fallback — clean up and format as paragraphs
+          let cleaned = text
+            .replace(/#\w+>?\s*/g, '')                // Strip hashtags like #GMTB>
+            .replace(/View full mountain report.*/gi, '')  // Strip nav junk
+            .replace(/cookie|privacy|copyright|©/gi, '')   // Strip legal junk
+            .replace(/\n{3,}/g, '\n\n')               // Collapse excess newlines
+            .trim();
+
+          // Split into paragraphs on double newlines, or treat as one block
+          const paragraphs = cleaned.split(/\n\n+/).filter(p => p.trim().length > 10);
+          if (paragraphs.length > 0) {
+            const escaped = paragraphs.map(p =>
+              '<p>' + p.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
+            ).join('');
+            body.innerHTML = '<div class="snow-report-narrative">' + escaped + '</div>';
+          } else {
+            body.innerHTML = '<div class="snow-report-narrative"><p>' +
+              cleaned.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p></div>';
+          }
         }
       })
       .catch(() => {

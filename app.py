@@ -147,5 +147,13 @@ def api_scrape():
 
 
 
+@app.route("/api/generate-digest", methods=["POST"])
+def api_generate_digest():
+    import threading
+    from digest import generate_digest
+    threading.Thread(target=generate_digest, daemon=True).start()
+    return jsonify({"status": "digest generation started"}), 202
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5050, debug=False)

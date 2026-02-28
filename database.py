@@ -267,11 +267,11 @@ def get_terrain_history(resort, terrain_name):
 # ─── Snow Reports ───
 
 def save_snow_report(resort, date_str, report_text, fetched_at):
-    """Save a snow report (only first of the day wins)."""
+    """Save or update a snow report for the day."""
     conn = _connect()
     try:
         conn.execute(
-            "INSERT OR IGNORE INTO snow_reports (resort, date, report_text, fetched_at) VALUES (?, ?, ?, ?)",
+            "INSERT OR REPLACE INTO snow_reports (resort, date, report_text, fetched_at) VALUES (?, ?, ?, ?)",
             (resort, date_str, report_text, fetched_at),
         )
         conn.commit()

@@ -12,7 +12,7 @@ from database import init_db, save_snapshot, update_daily_summary, save_snow_rep
 from scraper import scrape_all
 from weather import fetch_all_forecasts
 from avalanche import fetch_avalanche_forecast
-from digest import generate_digest
+from digest import generate_digest, summarize_snow_report
 from app import app
 
 MTN_TZ = pytz.timezone("America/Denver")
@@ -36,10 +36,12 @@ def run_scrape():
             save_snapshot(resort, name, status, scraped_at)
             update_daily_summary(resort, name, date_str, status, snow)
 
-        # Save snow report text (first non-empty of the day wins)
-        report_text = data.get("report_text", "")
-        if report_text and len(report_text.strip()) > 20:
-            save_snow_report(resort, date_str, report_text.strip(), scraped_at)
+        # Summarize raw page text into a snow report via Claude API
+        raw_text = data.get("raw_report_text", "")
+        if raw_text and len(raw_text.strip()) > 50:
+            summary = summarize_snow_report(resort, raw_text)
+            if summary:
+                save_snow_report(resort, date_str, summary, scraped_at)
 
     print(f"[{scraped_at}] Scrape complete.\n")
 

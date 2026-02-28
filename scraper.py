@@ -55,7 +55,7 @@ def scrape_snowbird(page):
         terrain_results = {t: "closed" for t in TRACKED["snowbird"]}
 
         log("[snowbird] Loading terrain page...")
-        page.goto(terrain_url, timeout=60000)
+        page.goto(terrain_url, timeout=90000, wait_until="domcontentloaded")
         try:
             page.wait_for_selector("td.name", timeout=15000)
         except Exception:
@@ -95,7 +95,7 @@ def scrape_snowbird(page):
         raw_report_text = ""
         try:
             log("[snowbird] Loading conditions page...")
-            page.goto(conditions_url, timeout=60000)
+            page.goto(conditions_url, timeout=90000, wait_until="domcontentloaded")
             page.wait_for_timeout(3000)
             text = page.inner_text("body")
             raw_report_text = text[:3000]
@@ -128,7 +128,7 @@ def scrape_brighton(page):
         terrain_results = {t: "closed" for t in TRACKED["brighton"]}
 
         log("[brighton] Loading page...")
-        page.goto(url, timeout=60000)
+        page.goto(url, timeout=90000, wait_until="domcontentloaded")
         try:
             page.wait_for_selector("text=Trail Status", timeout=15000)
         except Exception:
@@ -254,7 +254,7 @@ def scrape_solitude(page):
         terrain_results = {t: "closed" for t in TRACKED["solitude"]}
 
         log("[solitude] Loading page...")
-        page.goto(url, timeout=60000)
+        page.goto(url, timeout=90000, wait_until="domcontentloaded")
         try:
             page.wait_for_selector("text=Lifts", timeout=20000)
         except Exception:

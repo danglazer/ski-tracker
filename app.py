@@ -118,5 +118,34 @@ def api_status():
     return jsonify(response)
 
 
+@app.route("/api/scrape", methods=["POST"])
+def api_scrape():
+    """Manually trigger a full scrape cycle."""
+    import threading
+    from scraper import scrape_all
+    from database import save_snapshot, update_daily_summary, save_snow_report
+    from digest import summarize_snow_report
+
+    def do_scrape():
+        now = datetime.now(MTN_TZ)
+        date_str = now.strftime("%Y-%m-%d")
+        scraped_at = now.isoformat()
+        results = scrape_all()
+        for resort, data in results.items():
+            snow = data.get("snow_24hr", 0.0)
+            for t in data.get("terrain", []):
+                save_snapshot(resort, t["name"], t["status"], scraped_at)
+                update_daily_summary(resort, t["name"], date_str, t["status"], snow)
+            raw_text = data.get("raw_report_text", "")
+            if raw_text and len(raw_text.strip()) > 50:
+                summary = summarize_snow_report(resort, raw_text)
+                if summary:
+                    save_snow_report(resort, date_str, summary, scraped_at)
+
+    threading.Thread(target=do_scrape, daemon=True).start()
+    return jsonify({"status": "scrape started"}), 202
+
+
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5050, debug=False)

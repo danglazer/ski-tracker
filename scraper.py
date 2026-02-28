@@ -55,7 +55,7 @@ def scrape_snowbird(page):
         terrain_results = {t: "closed" for t in TRACKED["snowbird"]}
 
         log("[snowbird] Loading terrain page...")
-        page.goto(terrain_url, timeout=60000)
+        page.goto(terrain_url, timeout=90000, wait_until="domcontentloaded")
         try:
             page.wait_for_selector("td.name", timeout=15000)
         except Exception:
@@ -92,12 +92,13 @@ def scrape_snowbird(page):
         log(f"[snowbird] Terrain done: {terrain_results}")
 
         snow_24hr = 0.0
-        report_text = ""
+        raw_report_text = ""
         try:
             log("[snowbird] Loading conditions page...")
-            page.goto(conditions_url, timeout=60000)
+            page.goto(conditions_url, timeout=90000, wait_until="domcontentloaded")
             page.wait_for_timeout(3000)
             text = page.inner_text("body")
+            raw_report_text = text[:3000]
             m = re.search(r"24[\s\-]*(?:Hour|Hr)[\s\-]*Snow\s*([\d.]+)", text, re.IGNORECASE)
             if m:
                 snow_24hr = float(m.group(1))
@@ -143,10 +144,10 @@ def scrape_snowbird(page):
         except Exception as e:
             log(f"[snowbird] Failed to get snow data: {e}")
 
-        log(f"[snowbird] Done. Snow: {snow_24hr}, Report: {len(report_text)} chars")
+        log(f"[snowbird] Done. Snow: {snow_24hr}, Raw report: {len(raw_report_text)} chars")
         return {
             "snow_24hr": snow_24hr,
-            "report_text": report_text,
+            "raw_report_text": raw_report_text,
             "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["snowbird"]],
         }
 
@@ -162,7 +163,7 @@ def scrape_brighton(page):
         terrain_results = {t: "closed" for t in TRACKED["brighton"]}
 
         log("[brighton] Loading page...")
-        page.goto(url, timeout=60000)
+        page.goto(url, timeout=90000, wait_until="domcontentloaded")
         try:
             page.wait_for_selector("text=Trail Status", timeout=15000)
         except Exception:
@@ -203,9 +204,10 @@ def scrape_brighton(page):
         log(f"[brighton] Terrain done: {terrain_results}")
 
         snow_24hr = 0.0
-        report_text = ""
+        raw_report_text = ""
         try:
             text = page.inner_text("body")
+            raw_report_text = text[:3000]
             m = re.search(r"([\d.]+)[\"″\s]*Snow\s*24\s*Hrs", text, re.IGNORECASE)
             if m:
                 snow_24hr = float(m.group(1))
@@ -245,10 +247,10 @@ def scrape_brighton(page):
         except Exception as e:
             log(f"[brighton] Failed to get snow data: {e}")
 
-        log(f"[brighton] Done. Snow: {snow_24hr}, Report: {len(report_text)} chars")
+        log(f"[brighton] Done. Snow: {snow_24hr}, Raw report: {len(raw_report_text)} chars")
         return {
             "snow_24hr": snow_24hr,
-            "report_text": report_text,
+            "raw_report_text": raw_report_text,
             "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["brighton"]],
         }
 
@@ -294,28 +296,12 @@ def scrape_snowbasin():
             if m2:
                 snow_24hr = float(m2.group(1))
 
-        # Extract structured snow report from page text
-        report_text = ""
-        page_text_full = soup.get_text()
-        report_parts = []
-        metric_patterns = [
-            (r"24[\s-]*(?:Hour|Hr)s?[\s-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", '24hr Snowfall', '"'),
-            (r"48[\s-]*(?:Hour|Hr)s?[\s-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", '48hr Snowfall', '"'),
-            (r"(?:Base|Snow)[\s-]*Depth[:\s]*([\d.]+)", 'Base Depth', '"'),
-            (r"Season[\s-]*(?:Total|Snow(?:fall)?)[:\s]*([\d.]+)", 'Season Total', '"'),
-            (r"(?:New|Fresh)\s+Snow[:\s]*([\d.]+)", 'New Snow', '"'),
-            (r"(?:Summit|Mountain|Mid)[\s-]*Temp(?:erature)?[:\s]*(-?\d+)", 'Temperature', '°F'),
-        ]
-        for pattern, label, unit in metric_patterns:
-            m = re.search(pattern, page_text_full, re.IGNORECASE)
-            if m:
-                report_parts.append(f"{label}: {m.group(1)}{unit}")
-        report_text = "\n".join(report_parts)
+        raw_report_text = page_text[:3000]
 
-        log(f"[snowbasin] Done. Terrain: {terrain_results}, Snow: {snow_24hr}, Report: {len(report_text)} chars")
+        log(f"[snowbasin] Done. Terrain: {terrain_results}, Snow: {snow_24hr}, Raw report: {len(raw_report_text)} chars")
         return {
             "snow_24hr": snow_24hr,
-            "report_text": report_text,
+            "raw_report_text": raw_report_text,
             "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["snowbasin"]],
         }
 
@@ -332,7 +318,7 @@ def scrape_solitude(page):
         terrain_results = {t: "closed" for t in TRACKED["solitude"]}
 
         log("[solitude] Loading page...")
-        page.goto(url, timeout=60000)
+        page.goto(url, timeout=90000, wait_until="domcontentloaded")
         try:
             page.wait_for_selector("text=Lifts", timeout=20000)
         except Exception:
@@ -385,46 +371,12 @@ def scrape_solitude(page):
                 if m3:
                     snow_24hr = float(m3.group(1))
 
-        # Extract structured snow report
-        report_text = ""
-        try:
-            report_text = page.evaluate("""
-                () => {
-                    const body = document.body.innerText;
-                    const metrics = [
-                        /24[\\s-]*(?:Hour|Hr)s?[\\s-]*(?:Snow(?:fall)?)?[:\\s]*(\\d+[\\.]?\\d*)/i,
-                        /48[\\s-]*(?:Hour|Hr)s?[\\s-]*(?:Snow(?:fall)?)?[:\\s]*(\\d+[\\.]?\\d*)/i,
-                        /(?:Base|Snow)[\\s-]*Depth[:\\s]*(\\d+[\\.]?\\d*)/i,
-                        /Season[\\s-]*(?:Total|Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
-                        /(\\d+[\\.]?\\d*)[\\s]*(?:in)?[\\s]*(?:new|last|24)/i,
-                        /(?:Summit|Mountain|Mid)[\\s-]*Temp(?:erature)?[:\\s]*(-?\\d+)/i,
-                    ];
-                    const labels = [
-                        '24hr Snowfall', '48hr Snowfall', 'Base Depth',
-                        'Season Total', 'New Snow', 'Temperature'
-                    ];
-                    const units = ['"', '"', '"', '"', '"', '°F'];
+        raw_report_text = text[:3000]
 
-                    const parts = [];
-                    const seen = new Set();
-                    for (let i = 0; i < metrics.length; i++) {
-                        const m = body.match(metrics[i]);
-                        if (m && !seen.has(labels[i])) {
-                            seen.add(labels[i]);
-                            parts.push(labels[i] + ': ' + m[1] + units[i]);
-                        }
-                    }
-
-                    return parts.join('\\n');
-                }
-            """)
-        except Exception:
-            pass
-
-        log(f"[solitude] Done. Terrain: {terrain_results}, Snow: {snow_24hr}, Report: {len(report_text)} chars")
+        log(f"[solitude] Done. Terrain: {terrain_results}, Snow: {snow_24hr}, Raw report: {len(raw_report_text)} chars")
         return {
             "snow_24hr": snow_24hr,
-            "report_text": report_text,
+            "raw_report_text": raw_report_text,
             "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["solitude"]],
         }
 

@@ -1,4 +1,4 @@
-"""Generate daily AI digest using Claude API."""
+"""Generate daily AI digest and snow report summaries using Claude API."""
 
 import os
 import json
@@ -12,6 +12,59 @@ from database import (
 )
 
 MTN_TZ = pytz.timezone("America/Denver")
+
+RESORT_LABELS = {
+    "snowbird": "Snowbird",
+    "solitude": "Solitude",
+    "brighton": "Brighton",
+    "snowbasin": "Snowbasin",
+}
+
+
+def summarize_snow_report(resort, raw_text):
+    """Use Claude API to summarize raw resort page text into a 3-5 sentence snow report."""
+    api_key = os.environ.get("ANTHROPIC_API_KEY")
+    if not api_key:
+        print(f"[summary] No ANTHROPIC_API_KEY set, skipping summary for {resort}")
+        return None
+
+    if not raw_text or len(raw_text.strip()) < 50:
+        print(f"[summary] Raw text too short for {resort}, skipping")
+        return None
+
+    try:
+        import anthropic
+    except ImportError:
+        print("[summary] anthropic package not installed, skipping")
+        return None
+
+    label = RESORT_LABELS.get(resort, resort.title())
+
+    prompt = f"""Below is raw text scraped from the {label} ski resort conditions page. Extract and summarize the most important information into exactly 3-5 sentences. Focus on:
+
+1. Snow conditions: how much new snow fell (24hr, 48hr), base depth, snow quality
+2. Weather: current temperature, wind, visibility, forecast
+3. Terrain/lift status: what's open or closed, any notable openings or closures
+
+Be concise and factual. Write in present tense as a conditions report. Do not include any promotional content, links, or cookie/privacy text. If a piece of information is not present in the text, skip it.
+
+RAW PAGE TEXT:
+{raw_text[:2500]}"""
+
+    try:
+        client = anthropic.Anthropic(api_key=api_key)
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=300,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        summary = message.content[0].text.strip()
+        print(f"[summary] Generated summary for {resort} ({len(summary)} chars)")
+        return summary
+    except Exception as e:
+        print(f"[summary] Error summarizing {resort}: {e}")
+        return None
+
 
 
 def _format_terrain_summary(date_str, open_times):

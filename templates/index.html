@@ -807,34 +807,6 @@
       margin-bottom: 0;
     }
 
-    .snow-report-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
-    }
-
-    .snow-metric {
-      background: var(--bg-elevated);
-      border: 1px solid var(--border-subtle);
-      border-radius: 10px;
-      padding: 12px 14px;
-      text-align: center;
-    }
-
-    .snow-metric-label {
-      font-size: 0.72rem;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-bottom: 4px;
-    }
-
-    .snow-metric-value {
-      font-size: 1.3rem;
-      font-weight: 700;
-      color: var(--text-heading);
-    }
-
     .snow-report-empty {
       text-align: center;
       color: var(--text-muted);
@@ -1550,93 +1522,19 @@
           return;
         }
 
-        // Detect structured metrics: must have 2+ short lines like "24hr Snowfall: 4"
-        const lines = text.split('\n').filter(l => l.trim());
-        const metrics = [];
-        if (lines.length >= 2) {
-          for (const line of lines) {
-            const match = line.match(/^([A-Za-z\s]{3,25}):\s*(-?\d[\d.]*[°"℉]?\s*\w{0,2})$/);
-            if (match) {
-              metrics.push({ label: match[1].trim(), value: match[2].trim() });
-            }
-          }
+        // AI-generated summary — render as narrative paragraphs
+        const sentences = text.split(/(?<=\.)\s+/).filter(s => s.trim().length > 5);
+        let paras = [];
+        for (let i = 0; i < sentences.length; i += 3) {
+          paras.push(sentences.slice(i, i + 3).join(' '));
         }
+        if (paras.length === 0) paras = [text];
 
-        if (metrics.length >= 2 && metrics.length >= lines.length * 0.5) {
-          body.innerHTML = '<div class="snow-report-grid">' +
-            metrics.map(m =>
-              `<div class="snow-metric">
-                <div class="snow-metric-label">${m.label}</div>
-                <div class="snow-metric-value">${m.value}</div>
-              </div>`
-            ).join('') +
-            '</div>';
-        } else {
-          // Narrative text — clean junk and break into readable paragraphs
-          let cleaned = text
-            .replace(/#\w+>?\s*/g, '')
-            .replace(/View full mountain report.*/gi, '')
-            .replace(/Watch Live Webcams?.*/gi, '')
-            .replace(/See (the )?Full Report.*/gi, '')
-            .trim();
-
-          // Detect concatenated garbage text (e.g. "Current31°FPartly CloudyWind: 4 mph NE...")
-          // by checking for words mashed with numbers/symbols and very long "words"
-          const words = cleaned.split(/\s+/);
-          const garbledCount = words.filter(w =>
-            w.length > 20 || /[a-z][A-Z]/.test(w) || /[a-zA-Z]\d+°/.test(w) || /\d[a-zA-Z]{3,}/.test(w)
-          ).length;
-          const isGarbled = words.length > 0 && (garbledCount / words.length) > 0.15;
-
-          if (isGarbled) {
-            // Try to extract any readable metrics from the garbled text
-            const metricPatterns = [
-              { label: '24hr Snowfall', pattern: /(\d+)\s*(?:"|in|inches?)?\s*(?:in\s+)?(?:the\s+)?(?:last|past)?\s*24/i },
-              { label: '24hr Snowfall', pattern: /24\s*(?:hr|hour)s?\s*(?:snow(?:fall)?)?[:\s]*(\d+)/i },
-              { label: '48hr Snowfall', pattern: /48\s*(?:hr|hour)s?\s*(?:snow(?:fall)?)?[:\s]*(\d+)/i },
-              { label: 'Base Depth', pattern: /(?:base|mid)\s*(?:mountain\s*)?depth[:\s]*(\d+)/i },
-              { label: 'Temperature', pattern: /(?:Current|Summit|Base|Mid)\s*(?:Temp)?[:\s]*(-?\d+)\s*°?\s*F/i },
-              { label: 'Wind', pattern: /Wind[:\s]*(\d+\s*mph\s*[NESW]{1,3})/i },
-              { label: 'Season Total', pattern: /Season\s*(?:Total|Snow(?:fall)?)[:\s]*(\d+)/i },
-            ];
-            const extracted = [];
-            for (const mp of metricPatterns) {
-              const m = cleaned.match(mp.pattern);
-              if (m) extracted.push({ label: mp.label, value: m[1].trim() });
-            }
-            if (extracted.length >= 1) {
-              body.innerHTML = '<div class="snow-report-grid">' +
-                extracted.map(m =>
-                  `<div class="snow-metric">
-                    <div class="snow-metric-label">${m.label}</div>
-                    <div class="snow-metric-value">${m.value}</div>
-                  </div>`
-                ).join('') +
-                '</div>';
-            } else {
-              body.innerHTML = '<div class="snow-report-empty">No formatted snow report available for this date. Check back after the next data refresh.</div>';
-            }
-          } else {
-            // Split into sentences, then filter out junk sentences
-            const junkPattern = /cookie|privacy|copyright|©|traffic source|advertising partner|store.*on your browser|count visits|personalized ad|book.*night.*lodging|fourth night.*free|target audience|relevant ad|opt.out|data processing|consent|do not sell/i;
-
-            const allSentences = cleaned.split(/(?<=\.)\s+/).filter(s => s.trim().length > 5);
-            const goodSentences = allSentences.filter(s => !junkPattern.test(s));
-
-            // Group into paragraphs of ~3 sentences
-            let paras = [];
-            for (let i = 0; i < goodSentences.length; i += 3) {
-              paras.push(goodSentences.slice(i, i + 3).join(' '));
-            }
-            if (paras.length === 0) paras = [cleaned];
-
-            body.innerHTML = '<div class="snow-report-narrative">' +
-              paras.map(p =>
-                '<p>' + p.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
-              ).join('') +
-              '</div>';
-          }
-        }
+        body.innerHTML = '<div class="snow-report-narrative">' +
+          paras.map(p =>
+            '<p>' + p.trim().replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;') + '</p>'
+          ).join('') +
+          '</div>';
       })
       .catch(() => {
         body.innerHTML = '<div class="snow-report-empty">Failed to load snow report.</div>';

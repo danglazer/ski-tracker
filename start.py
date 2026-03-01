@@ -1,5 +1,6 @@
 """Combined entry point: runs the scheduler + Flask web app in one process."""
 
+import signal
 import threading
 import time
 from datetime import datetime
@@ -17,33 +18,55 @@ from app import app
 
 MTN_TZ = pytz.timezone("America/Denver")
 
+SCRAPE_TIMEOUT = 10 * 60  # 10 minutes max per scrape cycle
+
+
+class ScrapeTimeout(Exception):
+    pass
+
+
+def _timeout_handler(signum, frame):
+    raise ScrapeTimeout("Scrape timed out")
+
 
 def run_scrape():
     now = datetime.now(MTN_TZ)
     date_str = now.strftime("%Y-%m-%d")
     scraped_at = now.isoformat()
 
-    print(f"\n[{scraped_at}] Starting scrape...")
+    # Set an alarm so a stuck scrape can't block the scheduler forever
+    old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
+    signal.alarm(SCRAPE_TIMEOUT)
 
-    results = scrape_all()
+    try:
+        print(f"\n[{scraped_at}] Starting scrape...")
 
-    for resort, data in results.items():
-        snow = data.get("snow_24hr", 0.0)
-        for t in data.get("terrain", []):
-            name = t["name"]
-            status = t["status"]
-            print(f"  {resort} | {name} | {status}")
-            save_snapshot(resort, name, status, scraped_at)
-            update_daily_summary(resort, name, date_str, status, snow)
+        results = scrape_all()
 
-        # Summarize raw page text into a snow report via Claude API
-        raw_text = data.get("raw_report_text", "")
-        if raw_text and len(raw_text.strip()) > 50:
-            summary = summarize_snow_report(resort, raw_text)
-            if summary:
-                save_snow_report(resort, date_str, summary, scraped_at)
+        for resort, data in results.items():
+            snow = data.get("snow_24hr", 0.0)
+            for t in data.get("terrain", []):
+                name = t["name"]
+                status = t["status"]
+                print(f"  {resort} | {name} | {status}")
+                save_snapshot(resort, name, status, scraped_at)
+                update_daily_summary(resort, name, date_str, status, snow)
 
-    print(f"[{scraped_at}] Scrape complete.\n")
+            # Summarize raw page text into a snow report via Claude API
+            raw_text = data.get("raw_report_text", "")
+            if raw_text and len(raw_text.strip()) > 50:
+                summary = summarize_snow_report(resort, raw_text)
+                if summary:
+                    save_snow_report(resort, date_str, summary, scraped_at)
+
+        print(f"[{scraped_at}] Scrape complete.\n")
+    except ScrapeTimeout:
+        print(f"[{scraped_at}] Scrape timed out after {SCRAPE_TIMEOUT}s, aborting.\n")
+    except Exception as e:
+        print(f"[{scraped_at}] Scrape error: {e}\n")
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
 
 
 def run_weather():

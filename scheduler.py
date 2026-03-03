@@ -27,7 +27,7 @@ def run_scrape():
             status = t["status"]
             print(f"  {resort} | {name} | {status}")
             save_snapshot(resort, name, status, scraped_at)
-            update_daily_summary(resort, name, date_str, status, snow)
+            update_daily_summary(resort, name, date_str, status, snow, scraped_at)
 
     print(f"[{scraped_at}] Scrape complete.\n")
 

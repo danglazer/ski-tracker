@@ -36,10 +36,16 @@ def init_db():
             terrain_name TEXT NOT NULL,
             date TEXT NOT NULL,
             ever_opened INTEGER NOT NULL DEFAULT 0,
+            first_opened_at TEXT,
             snowfall_24hr REAL NOT NULL DEFAULT 0.0,
             UNIQUE(resort, terrain_name, date)
         )
     """)
+    # Migration: add first_opened_at if missing (existing DBs)
+    try:
+        c.execute("ALTER TABLE daily_summary ADD COLUMN first_opened_at TEXT")
+    except Exception:
+        pass  # Column already exists
     c.execute("""
         CREATE TABLE IF NOT EXISTS snow_reports (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -99,29 +105,33 @@ def save_snapshot(resort, terrain_name, status, scraped_at):
     conn.close()
 
 
-def update_daily_summary(resort, terrain_name, date_str, status, snowfall_24hr):
+def update_daily_summary(resort, terrain_name, date_str, status, snowfall_24hr, scraped_at=None):
     conn = _connect()
     c = conn.cursor()
 
     new_ever_opened = 1 if status == "open" else 0
 
     c.execute(
-        "SELECT ever_opened FROM daily_summary WHERE resort = ? AND terrain_name = ? AND date = ?",
+        "SELECT ever_opened, first_opened_at FROM daily_summary WHERE resort = ? AND terrain_name = ? AND date = ?",
         (resort, terrain_name, date_str),
     )
     row = c.fetchone()
 
     if row is None:
+        first_opened = scraped_at if new_ever_opened else None
         c.execute(
-            "INSERT INTO daily_summary (resort, terrain_name, date, ever_opened, snowfall_24hr) VALUES (?, ?, ?, ?, ?)",
-            (resort, terrain_name, date_str, new_ever_opened, snowfall_24hr),
+            "INSERT INTO daily_summary (resort, terrain_name, date, ever_opened, first_opened_at, snowfall_24hr) VALUES (?, ?, ?, ?, ?, ?)",
+            (resort, terrain_name, date_str, new_ever_opened, first_opened, snowfall_24hr),
         )
     else:
         existing = row["ever_opened"]
+        existing_time = row["first_opened_at"]
         final_opened = 1 if existing == 1 else new_ever_opened
+        # Record first_opened_at only on the first transition to open
+        first_opened = existing_time if existing_time else (scraped_at if new_ever_opened else None)
         c.execute(
-            "UPDATE daily_summary SET ever_opened = ?, snowfall_24hr = ? WHERE resort = ? AND terrain_name = ? AND date = ?",
-            (final_opened, snowfall_24hr, resort, terrain_name, date_str),
+            "UPDATE daily_summary SET ever_opened = ?, first_opened_at = ?, snowfall_24hr = ? WHERE resort = ? AND terrain_name = ? AND date = ?",
+            (final_opened, first_opened, snowfall_24hr, resort, terrain_name, date_str),
         )
 
     conn.commit()
@@ -166,7 +176,7 @@ def get_daily_view(date_str):
     conn = _connect()
     c = conn.cursor()
     c.execute(
-        "SELECT resort, terrain_name, ever_opened, snowfall_24hr FROM daily_summary WHERE date = ?",
+        "SELECT resort, terrain_name, ever_opened, first_opened_at, snowfall_24hr FROM daily_summary WHERE date = ?",
         (date_str,),
     )
     rows = c.fetchall()
@@ -180,6 +190,7 @@ def get_daily_view(date_str):
         result[resort].append({
             "terrain_name": row["terrain_name"],
             "ever_opened": row["ever_opened"],
+            "first_opened_at": row["first_opened_at"],
             "snowfall_24hr": row["snowfall_24hr"],
             "closed_streak": get_closed_streak(resort, row["terrain_name"], date_str),
         })
@@ -404,6 +415,43 @@ def get_terrain_open_times(date_str):
     rows = c.fetchall()
     conn.close()
     return {f'{row["resort"]}|{row["terrain_name"]}': row["first_open"] for row in rows}
+
+
+def backfill_open_times():
+    """Backfill first_opened_at from terrain_snapshots for rows that have ever_opened=1 but no time."""
+    conn = _connect()
+    c = conn.cursor()
+    c.execute("""
+        SELECT ds.resort, ds.terrain_name, ds.date
+        FROM daily_summary ds
+        WHERE ds.ever_opened = 1 AND ds.first_opened_at IS NULL
+    """)
+    rows = c.fetchall()
+    for row in rows:
+        c.execute("""
+            SELECT MIN(scraped_at) as first_open
+            FROM terrain_snapshots
+            WHERE resort = ? AND terrain_name = ? AND status = 'open' AND scraped_at LIKE ?
+        """, (row["resort"], row["terrain_name"], row["date"] + "%"))
+        snap = c.fetchone()
+        if snap and snap["first_open"]:
+            c.execute("""
+                UPDATE daily_summary SET first_opened_at = ?
+                WHERE resort = ? AND terrain_name = ? AND date = ?
+            """, (snap["first_open"], row["resort"], row["terrain_name"], row["date"]))
+    conn.commit()
+    conn.close()
+    return len(rows)
+
+
+def get_last_scrape_time():
+    """Return the most recent scraped_at timestamp from terrain_snapshots."""
+    conn = _connect()
+    c = conn.cursor()
+    c.execute("SELECT MAX(scraped_at) as last FROM terrain_snapshots")
+    row = c.fetchone()
+    conn.close()
+    return row["last"] if row else None
 
 
 def get_recent_daily_summaries(days=30):

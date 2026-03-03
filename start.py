@@ -8,7 +8,7 @@ import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from database import init_db, save_snapshot, update_daily_summary, save_snow_report
+from database import init_db, save_snapshot, update_daily_summary, save_snow_report, backfill_open_times
 from scraper import scrape_all
 from weather import fetch_all_forecasts
 from avalanche import fetch_avalanche_forecast
@@ -34,7 +34,7 @@ def run_scrape():
             status = t["status"]
             print(f"  {resort} | {name} | {status}")
             save_snapshot(resort, name, status, scraped_at)
-            update_daily_summary(resort, name, date_str, status, snow)
+            update_daily_summary(resort, name, date_str, status, snow, scraped_at)
 
         # Summarize raw page text into a snow report via Claude API
         raw_text = data.get("raw_report_text", "")
@@ -107,6 +107,7 @@ def start_scheduler():
 
 if __name__ == "__main__":
     init_db()
+    backfill_open_times()
 
     # Run scheduler in a background thread
     scraper_thread = threading.Thread(target=start_scheduler, daemon=True)

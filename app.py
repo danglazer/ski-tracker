@@ -6,7 +6,7 @@ from flask import Flask, jsonify, render_template, request
 from database import (
     init_db, get_daily_view, get_all_dates, get_full_history, get_terrain_history,
     get_resort_snow_history, get_snow_report, get_all_weather_forecasts,
-    get_avalanche_forecast, get_daily_digest,
+    get_avalanche_forecast, get_daily_digest, get_last_scrape_time,
 )
 
 app = Flask(__name__)
@@ -106,6 +106,7 @@ def api_status():
                 {
                     "name": t["terrain_name"],
                     "ever_opened": bool(t["ever_opened"]),
+                    "first_opened_at": t.get("first_opened_at"),
                     "closed_streak": t["closed_streak"],
                 }
                 for t in terrain_list
@@ -135,7 +136,7 @@ def api_scrape():
             snow = data.get("snow_24hr", 0.0)
             for t in data.get("terrain", []):
                 save_snapshot(resort, t["name"], t["status"], scraped_at)
-                update_daily_summary(resort, t["name"], date_str, t["status"], snow)
+                update_daily_summary(resort, t["name"], date_str, t["status"], snow, scraped_at)
             raw_text = data.get("raw_report_text", "")
             if raw_text and len(raw_text.strip()) > 50:
                 summary = summarize_snow_report(resort, raw_text)
@@ -144,6 +145,14 @@ def api_scrape():
 
     threading.Thread(target=do_scrape, daemon=True).start()
     return jsonify({"status": "scrape started"}), 202
+
+
+@app.route("/api/last-scrape")
+def api_last_scrape():
+    """Return the timestamp of the most recent scrape and dates with data."""
+    last = get_last_scrape_time()
+    dates = get_all_dates()
+    return jsonify({"last_scrape": last, "dates_with_data": dates})
 
 
 if __name__ == "__main__":

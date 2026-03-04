@@ -120,7 +120,11 @@ def fetch_avalanche_forecast():
         if not advisory:
             advisory = data.get("advisory", data)
 
-        print(f"[avalanche] Advisory keys: {list(advisory.keys())[:15]}")
+        print(f"[avalanche] Advisory keys: {list(advisory.keys())}")
+        # Debug: find image-related fields
+        for k, v in advisory.items():
+            if 'image' in k.lower() or 'rose' in k.lower() or 'photo' in k.lower() or 'png' in str(v)[:200].lower():
+                print(f"[avalanche] {k}: {str(v)[:300]}")
 
         # Extract bottom line (HTML content)
         bottom_line = _clean_html(

@@ -16,6 +16,7 @@ RESORT_COORDS = {
     "solitude": (40.6199, -111.5919),
     "brighton": (40.5980, -111.5832),
     "snowbasin": (41.2160, -111.8569),
+    "powdermountain": (41.3791, -111.7808),
 }
 
 # Cache for forecast URLs (they don't change)

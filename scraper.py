@@ -25,6 +25,7 @@ TRACKED = {
     "solitude": ["Honeycomb Canyon", "Summit Express", "Highway to Heaven", "Fantasy Ridge", "Evergreen Peak"],
     "brighton": ["Milly Bowl", "Snake Bowl"],
     "snowbasin": ["Allen Peak Tram", "Strawberry Gondola", "Middle Bowl Cirque Gate", "Upper Mt Ogden Bowl Gate"],
+    "powdermountain": ["James Peak"],
 }
 
 
@@ -321,6 +322,108 @@ def scrape_solitude(page):
         return {"snow_24hr": 0.0, "terrain": []}
 
 
+def scrape_powdermountain(page):
+    """Powder Mountain: JS-rendered, track James Peak hike-to terrain."""
+    try:
+        url = "https://powdermountain.com/conditions"
+        terrain_results = {t: "closed" for t in TRACKED["powdermountain"]}
+
+        log("[powdermountain] Loading page...")
+        page.goto(url, timeout=90000, wait_until="domcontentloaded")
+        try:
+            page.wait_for_selector("text=Conditions", timeout=15000)
+        except Exception:
+            pass
+        page.wait_for_timeout(5000)
+
+        text = page.inner_text("body")
+
+        # Strategy 1: Search full page text line by line
+        for line in text.splitlines():
+            line_lower = line.strip().lower()
+            if "james peak" in line_lower:
+                if "open" in line_lower:
+                    terrain_results["James Peak"] = "open"
+                elif "closed" in line_lower:
+                    terrain_results["James Peak"] = "closed"
+
+        # Strategy 2: DOM walk (same pattern as Brighton)
+        trail_data = page.evaluate("""
+            () => {
+                const results = {};
+                const targets = ['James Peak'];
+                const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+                while (walker.nextNode()) {
+                    const text = walker.currentNode.textContent.trim();
+                    for (const target of targets) {
+                        if (text.includes(target)) {
+                            let el = walker.currentNode.parentElement;
+                            for (let i = 0; i < 10; i++) {
+                                el = el.parentElement;
+                                if (!el) break;
+                                const imgs = el.querySelectorAll('img');
+                                for (const img of imgs) {
+                                    const alt = (img.alt || '').toLowerCase();
+                                    if (alt === 'open' || alt === 'closed') {
+                                        results[target] = alt;
+                                        break;
+                                    }
+                                }
+                                if (results[target]) break;
+                                const elText = (el.textContent || '').toLowerCase();
+                                if (elText.length < 200) {
+                                    if (/\\bopen\\b/.test(elText)) {
+                                        results[target] = 'open';
+                                        break;
+                                    } else if (/\\bclosed\\b/.test(elText)) {
+                                        results[target] = 'closed';
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                return results;
+            }
+        """)
+
+        for name, status in trail_data.items():
+            if name in terrain_results:
+                terrain_results[name] = normalize_status(status)
+
+        log(f"[powdermountain] Terrain done: {terrain_results}")
+
+        snow_24hr = 0.0
+        raw_report_text = ""
+        try:
+            raw_report_text = text[:3000]
+            m = re.search(r"24[\s\-]*(?:Hour|Hr|Hrs?)[\s\-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", text, re.IGNORECASE)
+            if m:
+                snow_24hr = float(m.group(1))
+            else:
+                m2 = re.search(r"([\d.]+)[\"″\s]*(?:in)?[\s]*(?:new|overnight|24)", text, re.IGNORECASE)
+                if m2:
+                    snow_24hr = float(m2.group(1))
+                else:
+                    m3 = re.search(r"(?:New|Fresh)\s+Snow[:\s]*([\d.]+)", text, re.IGNORECASE)
+                    if m3:
+                        snow_24hr = float(m3.group(1))
+        except Exception as e:
+            log(f"[powdermountain] Failed to get snow data: {e}")
+
+        log(f"[powdermountain] Done. Snow: {snow_24hr}, Raw report: {len(raw_report_text)} chars")
+        return {
+            "snow_24hr": snow_24hr,
+            "raw_report_text": raw_report_text,
+            "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["powdermountain"]],
+        }
+
+    except Exception as e:
+        log(f"[powdermountain] Scraper error: {e}")
+        return {"snow_24hr": 0.0, "terrain": []}
+
+
 def scrape_all():
     """Scrape all resorts using ONE shared Chromium browser to save memory."""
     from playwright.sync_api import sync_playwright
@@ -341,13 +444,14 @@ def scrape_all():
             results["snowbird"] = scrape_snowbird(page)
             results["brighton"] = scrape_brighton(page)
             results["solitude"] = scrape_solitude(page)
+            results["powdermountain"] = scrape_powdermountain(page)
 
             browser.close()
         log("[scraper] Chromium closed.")
     except Exception as e:
         log(f"[scraper] Chromium error: {e}")
         # Fill in missing resorts with empty data
-        for resort in ["snowbird", "brighton", "solitude"]:
+        for resort in ["snowbird", "brighton", "solitude", "powdermountain"]:
             if resort not in results:
                 results[resort] = {"snow_24hr": 0.0, "terrain": []}
 

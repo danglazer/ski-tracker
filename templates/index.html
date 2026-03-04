@@ -1801,8 +1801,10 @@
             problemsDiv.style.display = 'none';
           }
 
-          // Render danger rose
-          renderDangerRose(forecast.danger_rose);
+          // Render danger rose (UAC API returns comma-separated string)
+          let rose = forecast.danger_rose;
+          if (typeof rose === 'string') rose = rose.split(',').map(Number);
+          renderDangerRose(rose);
         } catch (e) {
           problemsDiv.style.display = 'none';
           document.getElementById('avy-rose').innerHTML = '';

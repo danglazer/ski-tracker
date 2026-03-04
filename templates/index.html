@@ -906,9 +906,24 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
       flex-wrap: wrap;
       gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .avy-header.expanded {
+      margin-bottom: 12px;
+    }
+
+    .avy-toggle {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      transition: transform 0.2s;
+    }
+
+    .avy-toggle.expanded {
+      transform: rotate(180deg);
     }
 
     .avy-header h2 {
@@ -994,6 +1009,56 @@
       text-align: center;
       padding: 12px;
     }
+
+    .avy-content-row {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .avy-text-col {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .avy-rose-col {
+      flex-shrink: 0;
+      text-align: center;
+    }
+
+    .avy-rose-col svg text {
+      fill: var(--text-secondary);
+    }
+
+    .avy-rose-legend {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 6px;
+      font-size: 0.7rem;
+      color: var(--text-tertiary);
+    }
+
+    .avy-rose-legend span {
+      display: flex;
+      align-items: center;
+      gap: 3px;
+    }
+
+    .avy-rose-legend .swatch {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      border: 1px solid rgba(255,255,255,0.2);
+    }
+
+    @media (max-width: 600px) {
+      .avy-content-row {
+        flex-direction: column-reverse;
+        align-items: center;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1027,16 +1092,23 @@
 <!-- Avalanche Forecast -->
 <section id="avalanche-section" style="display:none;">
   <div class="avy-card">
-    <div class="avy-header">
-      <h2>Avalanche Forecast &mdash; Salt Lake Mountains</h2>
+    <div class="avy-header" onclick="toggleAvalanche()">
+      <h2>Avalanche Forecast &mdash; Salt Lake Mountains <span class="avy-toggle" id="avy-toggle">&#9660;</span></h2>
       <span class="avy-danger-badge avy-danger-none" id="avy-badge">Loading...</span>
     </div>
-    <div class="avy-summary" id="avy-summary"></div>
-    <div class="avy-problems" id="avy-problems" style="display:none;">
-      <button class="avy-problems-toggle" onclick="toggleAvyProblems()">Show avalanche problems</button>
-      <ul class="avy-problems-list" id="avy-problems-list" style="display:none;"></ul>
+    <div id="avy-body" style="display:none;">
+      <div class="avy-content-row">
+        <div class="avy-text-col">
+          <div class="avy-summary" id="avy-summary"></div>
+          <div class="avy-problems" id="avy-problems" style="display:none;">
+            <button class="avy-problems-toggle" onclick="toggleAvyProblems()">Show avalanche problems</button>
+            <ul class="avy-problems-list" id="avy-problems-list" style="display:none;"></ul>
+          </div>
+        </div>
+        <div class="avy-rose-col" id="avy-rose"></div>
+      </div>
+      <a class="avy-link" href="https://utahavalanchecenter.org/forecast/salt-lake" target="_blank" rel="noopener">Full forecast at utahavalanchecenter.org &rarr;</a>
     </div>
-    <a class="avy-link" href="https://utahavalanchecenter.org/forecast/salt-lake" target="_blank" rel="noopener">Full forecast at utahavalanchecenter.org &rarr;</a>
   </div>
 </section>
 
@@ -1574,6 +1646,116 @@
 
   // ─── Avalanche Forecast ───
 
+  function toggleAvalanche() {
+    const body = document.getElementById('avy-body');
+    const toggle = document.getElementById('avy-toggle');
+    const header = document.querySelector('.avy-header');
+    if (body.style.display === 'none') {
+      body.style.display = '';
+      toggle.classList.add('expanded');
+      header.classList.add('expanded');
+    } else {
+      body.style.display = 'none';
+      toggle.classList.remove('expanded');
+      header.classList.remove('expanded');
+    }
+  }
+
+  const ROSE_COLORS = {
+    0: '#6b7280',  // No Rating - gray
+    1: '#4ade80', 2: '#4ade80',  // Low - green
+    3: '#facc15', 4: '#facc15',  // Moderate - yellow
+    5: '#fb923c', 6: '#fb923c',  // Considerable - orange
+    7: '#f87171', 8: '#f87171',  // High - red
+    9: '#1c1917', 10: '#1c1917', // Extreme - black
+  };
+
+  const ROSE_COLORS_LIGHT = {
+    0: '#9ca3af',
+    1: '#22c55e', 2: '#22c55e',
+    3: '#eab308', 4: '#eab308',
+    5: '#f97316', 6: '#f97316',
+    7: '#ef4444', 8: '#ef4444',
+    9: '#1c1917', 10: '#1c1917',
+  };
+
+  function renderDangerRose(roseData) {
+    const container = document.getElementById('avy-rose');
+    if (!roseData || roseData.length < 24) {
+      container.innerHTML = '';
+      return;
+    }
+
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const colors = isLight ? ROSE_COLORS_LIGHT : ROSE_COLORS;
+    const size = 170;
+    const cx = size / 2, cy = size / 2;
+    const radii = [22, 44, 66]; // inner (upper), mid, outer (lower)
+    const aspects = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
+    const wedgeAngle = Math.PI / 4; // 45 degrees per aspect
+
+    let paths = '';
+
+    // Draw wedges from outer to inner so inner draws on top
+    for (let ring = 2; ring >= 0; ring--) {
+      const rOuter = radii[ring];
+      const rInner = ring > 0 ? radii[ring - 1] : 0;
+
+      for (let a = 0; a < 8; a++) {
+        const idx = ring * 8 + a;
+        const val = parseInt(roseData[idx]) || 0;
+        const color = colors[val] || colors[0];
+
+        // Angle: 0 = North (up), clockwise. Offset by -90deg so 0 points up
+        const startAngle = (a - 0.5) * wedgeAngle - Math.PI / 2;
+        const endAngle = (a + 0.5) * wedgeAngle - Math.PI / 2;
+
+        const x1o = cx + rOuter * Math.cos(startAngle);
+        const y1o = cy + rOuter * Math.sin(startAngle);
+        const x2o = cx + rOuter * Math.cos(endAngle);
+        const y2o = cy + rOuter * Math.sin(endAngle);
+
+        let d;
+        if (rInner === 0) {
+          // Innermost ring: pie slice from center
+          d = `M ${cx} ${cy} L ${x1o} ${y1o} A ${rOuter} ${rOuter} 0 0 1 ${x2o} ${y2o} Z`;
+        } else {
+          const x1i = cx + rInner * Math.cos(startAngle);
+          const y1i = cy + rInner * Math.sin(startAngle);
+          const x2i = cx + rInner * Math.cos(endAngle);
+          const y2i = cy + rInner * Math.sin(endAngle);
+          d = `M ${x1i} ${y1i} L ${x1o} ${y1o} A ${rOuter} ${rOuter} 0 0 1 ${x2o} ${y2o} L ${x2i} ${y2i} A ${rInner} ${rInner} 0 0 0 ${x1i} ${y1i} Z`;
+        }
+
+        const stroke = isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)';
+        paths += `<path d="${d}" fill="${color}" stroke="${stroke}" stroke-width="0.5"/>`;
+      }
+    }
+
+    // Aspect labels
+    const labelR = radii[2] + 14;
+    let labels = '';
+    for (let a = 0; a < 8; a++) {
+      const angle = a * wedgeAngle - Math.PI / 2;
+      const lx = cx + labelR * Math.cos(angle);
+      const ly = cy + labelR * Math.sin(angle);
+      labels += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="600">${aspects[a]}</text>`;
+    }
+
+    container.innerHTML = `
+      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="display:block;margin:0 auto;">
+        ${paths}
+        ${labels}
+      </svg>
+      <div class="avy-rose-legend">
+        <span><span class="swatch" style="background:${colors[1]}"></span>Low</span>
+        <span><span class="swatch" style="background:${colors[3]}"></span>Mod</span>
+        <span><span class="swatch" style="background:${colors[5]}"></span>Csd</span>
+        <span><span class="swatch" style="background:${colors[7]}"></span>High</span>
+      </div>
+    `;
+  }
+
   function loadAvalanche(date) {
     fetch(`/api/avalanche?date=${date}`)
       .then(r => r.json())
@@ -1604,7 +1786,7 @@
           summary.textContent = '';
         }
 
-        // Parse problems from forecast_json
+        // Parse problems and danger rose from forecast_json
         const problemsDiv = document.getElementById('avy-problems');
         const problemsList = document.getElementById('avy-problems-list');
         try {
@@ -1618,8 +1800,12 @@
           } else {
             problemsDiv.style.display = 'none';
           }
+
+          // Render danger rose
+          renderDangerRose(forecast.danger_rose);
         } catch (e) {
           problemsDiv.style.display = 'none';
+          document.getElementById('avy-rose').innerHTML = '';
         }
       })
       .catch(() => {

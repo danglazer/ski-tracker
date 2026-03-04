@@ -830,6 +830,11 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .digest-header.expanded {
       margin-bottom: 12px;
     }
 
@@ -837,6 +842,16 @@
       color: var(--text-heading);
       font-size: 1.1rem;
       font-weight: 700;
+    }
+
+    .digest-toggle {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      transition: transform 0.2s;
+    }
+
+    .digest-toggle.expanded {
+      transform: rotate(180deg);
     }
 
     .digest-date {
@@ -1001,11 +1016,11 @@
 <!-- Daily Digest -->
 <section id="digest-section" style="display:none;">
   <div class="digest-card">
-    <div class="digest-header">
-      <h2>Daily Digest</h2>
+    <div class="digest-header" onclick="toggleDigest()">
+      <h2>Daily Digest <span class="digest-toggle" id="digest-toggle">&#9660;</span></h2>
       <span class="digest-date" id="digest-date"></span>
     </div>
-    <div id="digest-body" class="digest-body"></div>
+    <div id="digest-body" class="digest-body" style="display:none;"></div>
   </div>
 </section>
 
@@ -1625,6 +1640,21 @@
   }
 
   // ─── Daily Digest ───
+
+  function toggleDigest() {
+    const body = document.getElementById('digest-body');
+    const toggle = document.getElementById('digest-toggle');
+    const header = document.querySelector('.digest-header');
+    if (body.style.display === 'none') {
+      body.style.display = '';
+      toggle.classList.add('expanded');
+      header.classList.add('expanded');
+    } else {
+      body.style.display = 'none';
+      toggle.classList.remove('expanded');
+      header.classList.remove('expanded');
+    }
+  }
 
   function loadDigest(date) {
     fetch(`/api/digest?date=${date}`)

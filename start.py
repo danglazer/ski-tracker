@@ -8,7 +8,7 @@ import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from database import init_db, save_snapshot, update_daily_summary, save_snow_report, backfill_open_times
+from database import init_db, save_snapshot, update_daily_summary, save_snow_report, backfill_open_times, backfill_daily_from_snapshots
 from scraper import scrape_all
 from weather import fetch_all_forecasts
 from avalanche import fetch_avalanche_forecast
@@ -23,27 +23,42 @@ def run_scrape():
     date_str = now.strftime("%Y-%m-%d")
     scraped_at = now.isoformat()
 
-    print(f"\n[{scraped_at}] Starting scrape...")
+    print(f"\n[{scraped_at}] Starting scrape...", flush=True)
 
-    results = scrape_all()
+    try:
+        results = scrape_all()
+    except Exception as e:
+        print(f"[scraper] FATAL: scrape_all() crashed: {e}", flush=True)
+        return
 
+    saved_count = 0
     for resort, data in results.items():
         snow = data.get("snow_24hr", 0.0)
-        for t in data.get("terrain", []):
+        terrain = data.get("terrain", [])
+        if not terrain:
+            print(f"  [scraper] WARNING: {resort} returned no terrain data", flush=True)
+        for t in terrain:
             name = t["name"]
             status = t["status"]
-            print(f"  {resort} | {name} | {status}")
-            save_snapshot(resort, name, status, scraped_at)
-            update_daily_summary(resort, name, date_str, status, snow, scraped_at)
+            print(f"  {resort} | {name} | {status}", flush=True)
+            try:
+                save_snapshot(resort, name, status, scraped_at)
+                update_daily_summary(resort, name, date_str, status, snow, scraped_at)
+                saved_count += 1
+            except Exception as e:
+                print(f"  [scraper] ERROR saving {resort}/{name}: {e}", flush=True)
 
         # Summarize raw page text into a snow report via Claude API
-        raw_text = data.get("raw_report_text", "")
-        if raw_text and len(raw_text.strip()) > 50:
-            summary = summarize_snow_report(resort, raw_text)
-            if summary:
-                save_snow_report(resort, date_str, summary, scraped_at)
+        try:
+            raw_text = data.get("raw_report_text", "")
+            if raw_text and len(raw_text.strip()) > 50:
+                summary = summarize_snow_report(resort, raw_text)
+                if summary:
+                    save_snow_report(resort, date_str, summary, scraped_at)
+        except Exception as e:
+            print(f"  [scraper] ERROR summarizing {resort} snow report: {e}", flush=True)
 
-    print(f"[{scraped_at}] Scrape complete.\n")
+    print(f"[{scraped_at}] Scrape complete. Saved {saved_count} terrain entries.\n", flush=True)
 
 
 def run_weather():
@@ -108,6 +123,15 @@ def start_scheduler():
 if __name__ == "__main__":
     init_db()
     backfill_open_times()
+
+    # Backfill daily_summary from snapshots for any recent dates that may have gaps
+    from datetime import timedelta
+    today = datetime.now(MTN_TZ)
+    for days_ago in range(7):
+        d = (today - timedelta(days=days_ago)).strftime("%Y-%m-%d")
+        count = backfill_daily_from_snapshots(d)
+        if count > 0:
+            print(f"[startup] Backfilled {count} terrain entries for {d}", flush=True)
 
     # Run scheduler in a background thread
     scraper_thread = threading.Thread(target=start_scheduler, daemon=True)

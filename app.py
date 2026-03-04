@@ -7,7 +7,10 @@ from database import (
     init_db, get_daily_view, get_all_dates, get_full_history, get_terrain_history,
     get_resort_snow_history, get_snow_report, get_all_weather_forecasts,
     get_avalanche_forecast, get_daily_digest, get_last_scrape_time,
+    backfill_daily_from_snapshots,
 )
+
+from scraper import TRACKED
 
 app = Flask(__name__)
 MTN_TZ = pytz.timezone("America/Denver")
@@ -98,7 +101,9 @@ def api_status():
     weather = get_all_weather_forecasts(date_str)
 
     response = {}
-    for resort, terrain_list in view.items():
+    # Always include all tracked resorts so cards render even without terrain data
+    for resort, terrain_names in TRACKED.items():
+        terrain_list = view.get(resort, [])
         snow = terrain_list[0]["snowfall_24hr"] if terrain_list else 0.0
         resort_data = {
             "snow_24hr": snow,
@@ -153,6 +158,19 @@ def api_last_scrape():
     last = get_last_scrape_time()
     dates = get_all_dates()
     return jsonify({"last_scrape": last, "dates_with_data": dates})
+
+
+@app.route("/api/backfill", methods=["POST"])
+def api_backfill():
+    """Backfill daily_summary from terrain_snapshots for specific dates."""
+    dates = request.json.get("dates", []) if request.is_json else []
+    if not dates:
+        return jsonify({"error": "provide dates array in JSON body"}), 400
+    results = {}
+    for d in dates:
+        count = backfill_daily_from_snapshots(d)
+        results[d] = count
+    return jsonify({"backfilled": results})
 
 
 if __name__ == "__main__":

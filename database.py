@@ -444,6 +444,72 @@ def backfill_open_times():
     return len(rows)
 
 
+def backfill_daily_from_snapshots(date_str):
+    """Reconstruct daily_summary for a given date from terrain_snapshots.
+
+    This recovers data when snapshots were saved but daily_summary wasn't updated
+    (e.g., due to a crash partway through the scrape pipeline).
+    Returns count of rows created/updated.
+    """
+    conn = _connect()
+    c = conn.cursor()
+
+    # Find all snapshots for this date
+    c.execute("""
+        SELECT resort, terrain_name, status, MIN(scraped_at) as first_scrape
+        FROM terrain_snapshots
+        WHERE scraped_at LIKE ?
+        GROUP BY resort, terrain_name, status
+        ORDER BY resort, terrain_name
+    """, (date_str + "%",))
+    snapshots = c.fetchall()
+
+    if not snapshots:
+        conn.close()
+        return 0
+
+    # Build a map of resort/terrain -> (ever_opened, first_opened_at, snowfall)
+    terrain_data = {}
+    for snap in snapshots:
+        key = (snap["resort"], snap["terrain_name"])
+        if key not in terrain_data:
+            terrain_data[key] = {"ever_opened": 0, "first_opened_at": None}
+        if snap["status"] == "open":
+            terrain_data[key]["ever_opened"] = 1
+            if not terrain_data[key]["first_opened_at"]:
+                terrain_data[key]["first_opened_at"] = snap["first_scrape"]
+
+    # Get snowfall from existing daily_summary or default to 0
+    count = 0
+    for (resort, terrain_name), info in terrain_data.items():
+        c.execute(
+            "SELECT id, snowfall_24hr FROM daily_summary WHERE resort = ? AND terrain_name = ? AND date = ?",
+            (resort, terrain_name, date_str),
+        )
+        existing = c.fetchone()
+        snowfall = existing["snowfall_24hr"] if existing else 0.0
+
+        if existing is None:
+            c.execute(
+                "INSERT INTO daily_summary (resort, terrain_name, date, ever_opened, first_opened_at, snowfall_24hr) VALUES (?, ?, ?, ?, ?, ?)",
+                (resort, terrain_name, date_str, info["ever_opened"], info["first_opened_at"], snowfall),
+            )
+            count += 1
+        else:
+            # Update if we have better data (e.g., snapshot shows open but summary says closed)
+            new_opened = 1 if existing["snowfall_24hr"] or info["ever_opened"] else 0
+            first_time = info["first_opened_at"]
+            c.execute(
+                "UPDATE daily_summary SET ever_opened = MAX(ever_opened, ?), first_opened_at = COALESCE(first_opened_at, ?) WHERE resort = ? AND terrain_name = ? AND date = ?",
+                (info["ever_opened"], first_time, resort, terrain_name, date_str),
+            )
+            count += 1
+
+    conn.commit()
+    conn.close()
+    return count
+
+
 def get_last_scrape_time():
     """Return the most recent scraped_at timestamp from terrain_snapshots."""
     conn = _connect()

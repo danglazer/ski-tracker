@@ -1,5 +1,6 @@
 """Combined entry point: runs the scheduler + Flask web app in one process."""
 
+import signal
 import threading
 import time
 from datetime import datetime
@@ -21,48 +22,70 @@ from app import app
 
 MTN_TZ = pytz.timezone("America/Denver")
 
+SCRAPE_TIMEOUT = 10 * 60  # 10 minutes max per scrape cycle
+
+
+class ScrapeTimeout(Exception):
+    pass
+
+
+def _timeout_handler(signum, frame):
+    raise ScrapeTimeout("Scrape timed out")
+
 
 def run_scrape():
     now = datetime.now(MTN_TZ)
     date_str = now.strftime("%Y-%m-%d")
     scraped_at = now.isoformat()
 
-    print(f"\n[{scraped_at}] Starting scrape...", flush=True)
+    # Set an alarm so a stuck scrape can't block the scheduler forever
+    old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
+    signal.alarm(SCRAPE_TIMEOUT)
 
     try:
-        results = scrape_all()
-    except Exception as e:
-        print(f"[scraper] FATAL: scrape_all() crashed: {e}", flush=True)
-        return
+        print(f"\n[{scraped_at}] Starting scrape...", flush=True)
 
-    saved_count = 0
-    for resort, data in results.items():
-        snow = data.get("snow_24hr", 0.0)
-        terrain = data.get("terrain", [])
-        if not terrain:
-            print(f"  [scraper] WARNING: {resort} returned no terrain data", flush=True)
-        for t in terrain:
-            name = t["name"]
-            status = t["status"]
-            print(f"  {resort} | {name} | {status}", flush=True)
-            try:
-                save_snapshot(resort, name, status, scraped_at)
-                update_daily_summary(resort, name, date_str, status, snow, scraped_at)
-                saved_count += 1
-            except Exception as e:
-                print(f"  [scraper] ERROR saving {resort}/{name}: {e}", flush=True)
-
-        # Summarize raw page text into a snow report via Claude API
         try:
-            raw_text = data.get("raw_report_text", "")
-            if raw_text and len(raw_text.strip()) > 50:
-                summary = summarize_snow_report(resort, raw_text)
-                if summary:
-                    save_snow_report(resort, date_str, summary, scraped_at)
+            results = scrape_all()
         except Exception as e:
-            print(f"  [scraper] ERROR summarizing {resort} snow report: {e}", flush=True)
+            print(f"[scraper] FATAL: scrape_all() crashed: {e}", flush=True)
+            return
 
-    print(f"[{scraped_at}] Scrape complete. Saved {saved_count} terrain entries.\n", flush=True)
+        saved_count = 0
+        for resort, data in results.items():
+            snow = data.get("snow_24hr", 0.0)
+            terrain = data.get("terrain", [])
+            if not terrain:
+                print(f"  [scraper] WARNING: {resort} returned no terrain data", flush=True)
+            for t in terrain:
+                name = t["name"]
+                status = t["status"]
+                print(f"  {resort} | {name} | {status}", flush=True)
+                try:
+                    save_snapshot(resort, name, status, scraped_at)
+                    update_daily_summary(resort, name, date_str, status, snow, scraped_at)
+                    saved_count += 1
+                except Exception as e:
+                    print(f"  [scraper] ERROR saving {resort}/{name}: {e}", flush=True)
+
+            # Summarize raw page text into a snow report via Claude API
+            try:
+                raw_text = data.get("raw_report_text", "")
+                if raw_text and len(raw_text.strip()) > 50:
+                    summary = summarize_snow_report(resort, raw_text)
+                    if summary:
+                        save_snow_report(resort, date_str, summary, scraped_at)
+            except Exception as e:
+                print(f"  [scraper] ERROR summarizing {resort} snow report: {e}", flush=True)
+
+        print(f"[{scraped_at}] Scrape complete. Saved {saved_count} terrain entries.\n", flush=True)
+    except ScrapeTimeout:
+        print(f"[{scraped_at}] Scrape timed out after {SCRAPE_TIMEOUT}s, aborting.\n", flush=True)
+    except Exception as e:
+        print(f"[{scraped_at}] Scrape error: {e}\n", flush=True)
+    finally:
+        signal.alarm(0)
+        signal.signal(signal.SIGALRM, old_handler)
 
     # Check if we can generate today's digest now
     maybe_generate_digest()

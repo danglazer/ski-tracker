@@ -67,6 +67,7 @@ RAW PAGE TEXT:
         return None
 
 
+
 def _format_terrain_summary(date_str, open_times):
     """Format yesterday's terrain data for the prompt."""
     view = get_daily_view(date_str)

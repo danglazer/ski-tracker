@@ -107,6 +107,41 @@ def scrape_snowbird(page):
                 m2 = re.search(r"([\d.]+)\s*[\"″]\s*24", text)
                 if m2:
                     snow_24hr = float(m2.group(1))
+            # Extract structured snow report
+            try:
+                report_text = page.evaluate("""
+                    () => {
+                        const data = {};
+
+                        // Grab key stats from the conditions page
+                        const body = document.body.innerText;
+
+                        // Look for specific snow metrics
+                        const metrics = [
+                            /24[\\s-]*(?:Hour|Hr)s?[\\s-]*(?:Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /48[\\s-]*(?:Hour|Hr)s?[\\s-]*(?:Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /Base[\\s-]*Depth[:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /Season[\\s-]*(?:Total|Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /(?:Mid[\\s-]*)?Mountain[\\s-]*Temp(?:erature)?[:\\s]*(-?\\d+)/i,
+                            /Summit[\\s-]*Temp(?:erature)?[:\\s]*(-?\\d+)/i,
+                        ];
+                        const labels = [
+                            '24hr Snowfall', '48hr Snowfall', 'Base Depth',
+                            'Season Total', 'Mountain Temp', 'Summit Temp'
+                        ];
+                        const units = ['"', '"', '"', '"', '°F', '°F'];
+
+                        const parts = [];
+                        for (let i = 0; i < metrics.length; i++) {
+                            const m = body.match(metrics[i]);
+                            if (m) parts.push(labels[i] + ': ' + m[1] + units[i]);
+                        }
+
+                        return parts.join('\\n');
+                    }
+                """)
+            except Exception:
+                pass
         except Exception as e:
             log(f"[snowbird] Failed to get snow data: {e}")
 
@@ -181,6 +216,35 @@ def scrape_brighton(page):
                 m2 = re.search(r"Snow\s*24\s*Hrs[.\s]*([\d.]+)", text, re.IGNORECASE)
                 if m2:
                     snow_24hr = float(m2.group(1))
+            # Extract structured snow report
+            try:
+                report_text = page.evaluate("""
+                    () => {
+                        const body = document.body.innerText;
+                        const metrics = [
+                            /Snow\\s*24\\s*Hrs?[.:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /Snow\\s*48\\s*Hrs?[.:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /(?:Base|Snow)\\s*Depth[:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /Season[\\s-]*(?:Total|Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
+                            /(?:Current\\s+)?Temp(?:erature)?[:\\s]*(-?\\d+)/i,
+                        ];
+                        const labels = [
+                            '24hr Snowfall', '48hr Snowfall', 'Base Depth',
+                            'Season Total', 'Temperature'
+                        ];
+                        const units = ['"', '"', '"', '"', '°F'];
+
+                        const parts = [];
+                        for (let i = 0; i < metrics.length; i++) {
+                            const m = body.match(metrics[i]);
+                            if (m) parts.push(labels[i] + ': ' + m[1] + units[i]);
+                        }
+
+                        return parts.join('\\n');
+                    }
+                """)
+            except Exception:
+                pass
         except Exception as e:
             log(f"[brighton] Failed to get snow data: {e}")
 

@@ -52,7 +52,7 @@ Hosted on Fly.io as `resort-terrain-tracker` with a persistent SQLite volume.
 
 ```bash
 # Deploy
-cd ~/ski-tracker-deploy
+cd ~/ski-tracker
 git pull origin main
 fly deploy --app resort-terrain-tracker
 

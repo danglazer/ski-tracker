@@ -122,11 +122,30 @@ def fetch_avalanche_forecast():
 
         all_keys = list(advisory.keys())
         print(f"[avalanche] Advisory keys ({len(all_keys)}): {all_keys}")
-        # Log any keys containing 'rose' or 'image'
+
+        # Check parent object (advisories[0]) for rose image fields
+        if isinstance(advisories, list) and len(advisories) > 0:
+            parent = advisories[0]
+            parent_keys = [k for k in parent.keys() if k != 'advisory']
+            print(f"[avalanche] Parent keys: {parent_keys}")
+            for k in parent_keys:
+                if 'rose' in k.lower() or 'image' in k.lower():
+                    val = str(parent[k])[:300]
+                    print(f"[avalanche] parent.{k} = {val}")
+
+        # Also check top-level data keys
+        top_keys = [k for k in data.keys() if k != 'advisories']
+        print(f"[avalanche] Top-level keys: {top_keys}")
+        for k in top_keys:
+            if 'rose' in k.lower() or 'image' in k.lower():
+                val = str(data[k])[:300]
+                print(f"[avalanche] data.{k} = {val}")
+
+        # Check advisory rose/image fields
         for k in all_keys:
             if 'rose' in k.lower() or 'image' in k.lower():
-                val = str(advisory[k])[:200]
-                print(f"[avalanche] {k} = {val}")
+                val = str(advisory[k])[:300]
+                print(f"[avalanche] advisory.{k} = {val}")
 
         # Extract bottom line (HTML content)
         bottom_line = _clean_html(

@@ -131,6 +131,8 @@ def api_scrape():
     from scraper import scrape_all
     from database import save_snapshot, update_daily_summary, save_snow_report
     from digest import summarize_snow_report
+    from avalanche import fetch_avalanche_forecast
+    from start import maybe_generate_digest
 
     def do_scrape():
         now = datetime.now(MTN_TZ)
@@ -147,6 +149,8 @@ def api_scrape():
                 summary = summarize_snow_report(resort, raw_text)
                 if summary:
                     save_snow_report(resort, date_str, summary, scraped_at)
+        fetch_avalanche_forecast()
+        maybe_generate_digest()
 
     threading.Thread(target=do_scrape, daemon=True).start()
     return jsonify({"status": "scrape started"}), 202

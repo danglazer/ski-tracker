@@ -100,7 +100,12 @@ def run_weather():
 
 
 def run_avalanche():
-    """Fetch UAC avalanche forecast."""
+    """Fetch UAC avalanche forecast (skip if already have today's)."""
+    today = datetime.now(MTN_TZ).strftime("%Y-%m-%d")
+    existing = get_avalanche_forecast("salt-lake", today)
+    if existing:
+        print(f"[avalanche] Forecast already exists for {today}, skipping")
+        return
     try:
         fetch_avalanche_forecast()
     except Exception as e:

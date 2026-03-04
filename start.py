@@ -1,6 +1,5 @@
 """Combined entry point: runs the scheduler + Flask web app in one process."""
 
-import signal
 import threading
 import time
 from datetime import datetime
@@ -25,22 +24,23 @@ MTN_TZ = pytz.timezone("America/Denver")
 SCRAPE_TIMEOUT = 10 * 60  # 10 minutes max per scrape cycle
 
 
-class ScrapeTimeout(Exception):
-    pass
-
-
-def _timeout_handler(signum, frame):
-    raise ScrapeTimeout("Scrape timed out")
-
 
 def run_scrape():
     now = datetime.now(MTN_TZ)
     date_str = now.strftime("%Y-%m-%d")
     scraped_at = now.isoformat()
 
-    # Set an alarm so a stuck scrape can't block the scheduler forever
-    old_handler = signal.signal(signal.SIGALRM, _timeout_handler)
-    signal.alarm(SCRAPE_TIMEOUT)
+    # Use a threading.Timer as a watchdog instead of signal.SIGALRM
+    # (signals only work in the main thread)
+    timed_out = threading.Event()
+
+    def _watchdog():
+        timed_out.set()
+        print(f"[{scraped_at}] Scrape timed out after {SCRAPE_TIMEOUT}s.\n", flush=True)
+
+    watchdog = threading.Timer(SCRAPE_TIMEOUT, _watchdog)
+    watchdog.daemon = True
+    watchdog.start()
 
     try:
         print(f"\n[{scraped_at}] Starting scrape...", flush=True)
@@ -51,8 +51,15 @@ def run_scrape():
             print(f"[scraper] FATAL: scrape_all() crashed: {e}", flush=True)
             return
 
+        if timed_out.is_set():
+            return
+
         saved_count = 0
         for resort, data in results.items():
+            if timed_out.is_set():
+                print(f"[scraper] Timeout reached, stopping save loop.", flush=True)
+                break
+
             snow = data.get("snow_24hr", 0.0)
             terrain = data.get("terrain", [])
             if not terrain:
@@ -79,13 +86,10 @@ def run_scrape():
                 print(f"  [scraper] ERROR summarizing {resort} snow report: {e}", flush=True)
 
         print(f"[{scraped_at}] Scrape complete. Saved {saved_count} terrain entries.\n", flush=True)
-    except ScrapeTimeout:
-        print(f"[{scraped_at}] Scrape timed out after {SCRAPE_TIMEOUT}s, aborting.\n", flush=True)
     except Exception as e:
         print(f"[{scraped_at}] Scrape error: {e}\n", flush=True)
     finally:
-        signal.alarm(0)
-        signal.signal(signal.SIGALRM, old_handler)
+        watchdog.cancel()
 
     # Check if we can generate today's digest now
     maybe_generate_digest()

@@ -1026,31 +1026,9 @@
       text-align: center;
     }
 
-    .avy-rose-col svg text {
-      fill: var(--text-secondary);
-    }
-
-    .avy-rose-legend {
-      display: flex;
-      gap: 12px;
-      justify-content: center;
-      margin-top: 6px;
-      font-size: 0.7rem;
-      color: var(--text-tertiary);
-    }
-
-    .avy-rose-legend span {
-      display: flex;
-      align-items: center;
-      gap: 3px;
-    }
-
-    .avy-rose-legend .swatch {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      border-radius: 2px;
-      border: 1px solid rgba(255,255,255,0.2);
+    .avy-rose-col img {
+      max-width: 170px;
+      width: 100%;
     }
 
     @media (max-width: 600px) {
@@ -1661,100 +1639,6 @@
     }
   }
 
-  const ROSE_COLORS = {
-    0: '#6b7280',  // No Rating - gray
-    1: '#4ade80', 2: '#4ade80',  // Low - green
-    3: '#facc15', 4: '#facc15',  // Moderate - yellow
-    5: '#fb923c', 6: '#fb923c',  // Considerable - orange
-    7: '#f87171', 8: '#f87171',  // High - red
-    9: '#1c1917', 10: '#1c1917', // Extreme - black
-  };
-
-  const ROSE_COLORS_LIGHT = {
-    0: '#9ca3af',
-    1: '#22c55e', 2: '#22c55e',
-    3: '#eab308', 4: '#eab308',
-    5: '#f97316', 6: '#f97316',
-    7: '#ef4444', 8: '#ef4444',
-    9: '#1c1917', 10: '#1c1917',
-  };
-
-  function renderDangerRose(roseData) {
-    const container = document.getElementById('avy-rose');
-    if (!roseData || roseData.length < 24) {
-      container.innerHTML = '';
-      return;
-    }
-
-    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    const colors = isLight ? ROSE_COLORS_LIGHT : ROSE_COLORS;
-    const size = 170;
-    const cx = size / 2, cy = size / 2;
-    const radii = [22, 44, 66]; // inner (upper), mid, outer (lower)
-    const aspects = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
-    const wedgeAngle = Math.PI / 4; // 45 degrees per aspect
-
-    let paths = '';
-
-    // Draw wedges from outer to inner so inner draws on top
-    for (let ring = 2; ring >= 0; ring--) {
-      const rOuter = radii[ring];
-      const rInner = ring > 0 ? radii[ring - 1] : 0;
-
-      for (let a = 0; a < 8; a++) {
-        const idx = ring * 8 + a;
-        const val = parseInt(roseData[idx]) || 0;
-        const color = colors[val] || colors[0];
-
-        // Angle: 0 = North (up), clockwise. Offset by -90deg so 0 points up
-        const startAngle = (a - 0.5) * wedgeAngle - Math.PI / 2;
-        const endAngle = (a + 0.5) * wedgeAngle - Math.PI / 2;
-
-        const x1o = cx + rOuter * Math.cos(startAngle);
-        const y1o = cy + rOuter * Math.sin(startAngle);
-        const x2o = cx + rOuter * Math.cos(endAngle);
-        const y2o = cy + rOuter * Math.sin(endAngle);
-
-        let d;
-        if (rInner === 0) {
-          // Innermost ring: pie slice from center
-          d = `M ${cx} ${cy} L ${x1o} ${y1o} A ${rOuter} ${rOuter} 0 0 1 ${x2o} ${y2o} Z`;
-        } else {
-          const x1i = cx + rInner * Math.cos(startAngle);
-          const y1i = cy + rInner * Math.sin(startAngle);
-          const x2i = cx + rInner * Math.cos(endAngle);
-          const y2i = cy + rInner * Math.sin(endAngle);
-          d = `M ${x1i} ${y1i} L ${x1o} ${y1o} A ${rOuter} ${rOuter} 0 0 1 ${x2o} ${y2o} L ${x2i} ${y2i} A ${rInner} ${rInner} 0 0 0 ${x1i} ${y1i} Z`;
-        }
-
-        const stroke = isLight ? 'rgba(0,0,0,0.15)' : 'rgba(255,255,255,0.15)';
-        paths += `<path d="${d}" fill="${color}" stroke="${stroke}" stroke-width="0.5"/>`;
-      }
-    }
-
-    // Aspect labels
-    const labelR = radii[2] + 14;
-    let labels = '';
-    for (let a = 0; a < 8; a++) {
-      const angle = a * wedgeAngle - Math.PI / 2;
-      const lx = cx + labelR * Math.cos(angle);
-      const ly = cy + labelR * Math.sin(angle);
-      labels += `<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central" font-size="10" font-weight="600">${aspects[a]}</text>`;
-    }
-
-    container.innerHTML = `
-      <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="display:block;margin:0 auto;">
-        ${paths}
-        ${labels}
-      </svg>
-      <div class="avy-rose-legend">
-        <span><span class="swatch" style="background:${colors[1]}"></span>Low</span>
-        <span><span class="swatch" style="background:${colors[3]}"></span>Mod</span>
-        <span><span class="swatch" style="background:${colors[5]}"></span>Csd</span>
-        <span><span class="swatch" style="background:${colors[7]}"></span>High</span>
-      </div>
-    `;
-  }
 
   function loadAvalanche(date) {
     fetch(`/api/avalanche?date=${date}`)
@@ -1801,10 +1685,13 @@
             problemsDiv.style.display = 'none';
           }
 
-          // Render danger rose (UAC API returns comma-separated string)
-          let rose = forecast.danger_rose;
-          if (typeof rose === 'string') rose = rose.split(',').map(Number);
-          renderDangerRose(rose);
+          // Show UAC danger rose image
+          const roseContainer = document.getElementById('avy-rose');
+          if (forecast.danger_rose_image) {
+            roseContainer.innerHTML = `<img src="${forecast.danger_rose_image}" alt="Avalanche Danger Rose" style="max-width:170px;width:100%;">`;
+          } else {
+            roseContainer.innerHTML = '';
+          }
         } catch (e) {
           problemsDiv.style.display = 'none';
           document.getElementById('avy-rose').innerHTML = '';

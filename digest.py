@@ -18,6 +18,7 @@ RESORT_LABELS = {
     "solitude": "Solitude",
     "brighton": "Brighton",
     "snowbasin": "Snowbasin",
+    "powdermountain": "Powder Mountain",
 }
 
 
@@ -166,7 +167,7 @@ def _format_historical(summaries):
 def _format_snow_reports(date_str):
     """Format yesterday's snow reports for the prompt."""
     reports = []
-    for resort in ["snowbird", "solitude", "brighton", "snowbasin"]:
+    for resort in ["snowbird", "solitude", "brighton", "snowbasin", "powdermountain"]:
         text = get_snow_report(resort, date_str)
         if text:
             reports.append(f"  {resort.title()}: {text[:300]}")
@@ -206,7 +207,7 @@ def generate_digest():
         for d in recent:
             pattern_context += f"\n--- {d['date']} ---\n{d['digest_text'][:500]}\n"
 
-    prompt = f"""You are a ski conditions analyst for Utah resorts (Snowbird, Solitude, Brighton, Snowbasin).
+    prompt = f"""You are a ski conditions analyst for Utah resorts (Snowbird, Solitude, Brighton, Snowbasin, Powder Mountain).
 Generate a concise daily briefing for powder hunters. Be direct and practical.
 
 YESTERDAY ({yesterday}) TERRAIN & SNOW:

@@ -1093,10 +1093,11 @@
     snowbird: 'Snowbird',
     solitude: 'Solitude',
     brighton: 'Brighton',
-    snowbasin: 'Snowbasin'
+    snowbasin: 'Snowbasin',
+    powdermountain: 'Powder Mountain'
   };
 
-  const RESORT_ORDER = ['snowbird', 'solitude', 'brighton', 'snowbasin'];
+  const RESORT_ORDER = ['snowbird', 'solitude', 'brighton', 'snowbasin', 'powdermountain'];
 
   function formatDate(d) {
     // Format date in Mountain Time (America/Denver), not UTC
@@ -1186,7 +1187,18 @@
         if (t.ever_opened === null || t.ever_opened === undefined) {
           pillClass = 'no-data'; pillText = 'No data';
         } else if (t.ever_opened) {
-          pillClass = 'open'; pillText = 'Opened';
+          pillClass = 'open';
+          if (t.first_opened_at) {
+            try {
+              const dt = new Date(t.first_opened_at);
+              const timeStr = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', timeZone: 'America/Denver' });
+              pillText = `Opened ${timeStr}`;
+            } catch(e) {
+              pillText = 'Opened';
+            }
+          } else {
+            pillText = 'Opened';
+          }
         } else {
           pillClass = 'closed'; pillText = 'Closed all day';
         }

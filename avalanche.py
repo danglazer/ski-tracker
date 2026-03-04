@@ -120,7 +120,13 @@ def fetch_avalanche_forecast():
         if not advisory:
             advisory = data.get("advisory", data)
 
-        print(f"[avalanche] Advisory keys: {list(advisory.keys())[:15]}")
+        all_keys = list(advisory.keys())
+        print(f"[avalanche] Advisory keys ({len(all_keys)}): {all_keys}")
+        # Log any keys containing 'rose' or 'image'
+        for k in all_keys:
+            if 'rose' in k.lower() or 'image' in k.lower():
+                val = str(advisory[k])[:200]
+                print(f"[avalanche] {k} = {val}")
 
         # Extract bottom line (HTML content)
         bottom_line = _clean_html(

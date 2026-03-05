@@ -105,15 +105,18 @@ def run_weather():
 
 
 def run_avalanche():
-    """Fetch UAC avalanche forecast (skip if already have today's with image)."""
+    """Fetch UAC avalanche forecast (skip if already have today's actual forecast with image)."""
     today = datetime.now(MTN_TZ).strftime("%Y-%m-%d")
     existing = get_avalanche_forecast("salt-lake", today)
     if existing:
         try:
             import json
             fj = json.loads(existing.get("forecast_json", "{}"))
-            if fj.get("danger_rose_image"):
-                print(f"[avalanche] Forecast with rose image exists for {today}, skipping")
+            # Only skip if we have a rose image AND the forecast is actually for today
+            # (early morning fetches may return yesterday's forecast from UAC)
+            forecast_date = fj.get("forecast_date", "")
+            if fj.get("danger_rose_image") and today in forecast_date:
+                print(f"[avalanche] Today's forecast with rose image exists for {today}, skipping")
                 return
         except Exception:
             pass

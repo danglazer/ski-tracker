@@ -120,8 +120,6 @@ def fetch_avalanche_forecast():
         if not advisory:
             advisory = data.get("advisory", data)
 
-        print(f"[avalanche] Advisory keys: {list(advisory.keys())[:15]}")
-
         # Extract bottom line (HTML content)
         bottom_line = _clean_html(
             advisory.get("bottom_line", "")
@@ -134,11 +132,19 @@ def fetch_avalanche_forecast():
         # Parse avalanche problems
         problems = _parse_avalanche_problems(advisory)
 
+        # Extract danger rose image URL from HTML img tag
+        rose_image_html = advisory.get("overall_danger_rose_image", "")
+        rose_image_url = ""
+        if rose_image_html:
+            match = re.search(r'src="([^"]+)"', rose_image_html)
+            if match:
+                rose_image_url = match.group(1)
+
         # Store structured data for frontend
         stored_data = {
             "overall_danger": overall_danger,
             "bottom_line": bottom_line,
-            "danger_rose": advisory.get("overall_danger_rose", []),
+            "danger_rose_image": rose_image_url,
             "problems": problems,
             "forecast_date": advisory.get("date_issued", "") or data.get("date_issued", ""),
         }

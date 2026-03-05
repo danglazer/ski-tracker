@@ -131,22 +131,27 @@ def api_scrape():
     from scraper import scrape_all
     from database import save_snapshot, update_daily_summary, save_snow_report
     from digest import summarize_snow_report
+    from avalanche import fetch_avalanche_forecast
 
     def do_scrape():
         now = datetime.now(MTN_TZ)
         date_str = now.strftime("%Y-%m-%d")
         scraped_at = now.isoformat()
-        results = scrape_all()
-        for resort, data in results.items():
-            snow = data.get("snow_24hr", 0.0)
-            for t in data.get("terrain", []):
-                save_snapshot(resort, t["name"], t["status"], scraped_at)
-                update_daily_summary(resort, t["name"], date_str, t["status"], snow, scraped_at)
-            raw_text = data.get("raw_report_text", "")
-            if raw_text and len(raw_text.strip()) > 50:
-                summary = summarize_snow_report(resort, raw_text)
-                if summary:
-                    save_snow_report(resort, date_str, summary, scraped_at)
+        try:
+            results = scrape_all()
+            for resort, data in results.items():
+                snow = data.get("snow_24hr", 0.0)
+                for t in data.get("terrain", []):
+                    save_snapshot(resort, t["name"], t["status"], scraped_at)
+                    update_daily_summary(resort, t["name"], date_str, t["status"], snow, scraped_at)
+                raw_text = data.get("raw_report_text", "")
+                if raw_text and len(raw_text.strip()) > 50:
+                    summary = summarize_snow_report(resort, raw_text)
+                    if summary:
+                        save_snow_report(resort, date_str, summary, scraped_at)
+        except Exception as e:
+            print(f"[scrape] Terrain scrape error: {e}")
+        fetch_avalanche_forecast()
 
     threading.Thread(target=do_scrape, daemon=True).start()
     return jsonify({"status": "scrape started"}), 202

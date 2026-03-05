@@ -906,9 +906,24 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 12px;
       flex-wrap: wrap;
       gap: 8px;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .avy-header.expanded {
+      margin-bottom: 12px;
+    }
+
+    .avy-toggle {
+      color: var(--text-secondary);
+      font-size: 0.8rem;
+      transition: transform 0.2s;
+    }
+
+    .avy-toggle.expanded {
+      transform: rotate(180deg);
     }
 
     .avy-header h2 {
@@ -994,6 +1009,34 @@
       text-align: center;
       padding: 12px;
     }
+
+    .avy-content-row {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .avy-text-col {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .avy-rose-col {
+      flex-shrink: 0;
+      text-align: center;
+    }
+
+    .avy-rose-col img {
+      max-width: 170px;
+      width: 100%;
+    }
+
+    @media (max-width: 600px) {
+      .avy-content-row {
+        flex-direction: column-reverse;
+        align-items: center;
+      }
+    }
   </style>
 </head>
 <body>
@@ -1027,16 +1070,23 @@
 <!-- Avalanche Forecast -->
 <section id="avalanche-section" style="display:none;">
   <div class="avy-card">
-    <div class="avy-header">
-      <h2>Avalanche Forecast &mdash; Salt Lake Mountains</h2>
+    <div class="avy-header" onclick="toggleAvalanche()">
+      <h2>Avalanche Forecast &mdash; Salt Lake Mountains <span class="avy-toggle" id="avy-toggle">&#9660;</span></h2>
       <span class="avy-danger-badge avy-danger-none" id="avy-badge">Loading...</span>
     </div>
-    <div class="avy-summary" id="avy-summary"></div>
-    <div class="avy-problems" id="avy-problems" style="display:none;">
-      <button class="avy-problems-toggle" onclick="toggleAvyProblems()">Show avalanche problems</button>
-      <ul class="avy-problems-list" id="avy-problems-list" style="display:none;"></ul>
+    <div id="avy-body" style="display:none;">
+      <div class="avy-content-row">
+        <div class="avy-text-col">
+          <div class="avy-summary" id="avy-summary"></div>
+          <div class="avy-problems" id="avy-problems" style="display:none;">
+            <button class="avy-problems-toggle" onclick="toggleAvyProblems()">Show avalanche problems</button>
+            <ul class="avy-problems-list" id="avy-problems-list" style="display:none;"></ul>
+          </div>
+        </div>
+        <div class="avy-rose-col" id="avy-rose"></div>
+      </div>
+      <a class="avy-link" href="https://utahavalanchecenter.org/forecast/salt-lake" target="_blank" rel="noopener">Full forecast at utahavalanchecenter.org &rarr;</a>
     </div>
-    <a class="avy-link" href="https://utahavalanchecenter.org/forecast/salt-lake" target="_blank" rel="noopener">Full forecast at utahavalanchecenter.org &rarr;</a>
   </div>
 </section>
 
@@ -1574,6 +1624,22 @@
 
   // ─── Avalanche Forecast ───
 
+  function toggleAvalanche() {
+    const body = document.getElementById('avy-body');
+    const toggle = document.getElementById('avy-toggle');
+    const header = document.querySelector('.avy-header');
+    if (body.style.display === 'none') {
+      body.style.display = '';
+      toggle.classList.add('expanded');
+      header.classList.add('expanded');
+    } else {
+      body.style.display = 'none';
+      toggle.classList.remove('expanded');
+      header.classList.remove('expanded');
+    }
+  }
+
+
   function loadAvalanche(date) {
     fetch(`/api/avalanche?date=${date}`)
       .then(r => r.json())
@@ -1604,7 +1670,7 @@
           summary.textContent = '';
         }
 
-        // Parse problems from forecast_json
+        // Parse problems and danger rose from forecast_json
         const problemsDiv = document.getElementById('avy-problems');
         const problemsList = document.getElementById('avy-problems-list');
         try {
@@ -1618,8 +1684,17 @@
           } else {
             problemsDiv.style.display = 'none';
           }
+
+          // Show UAC danger rose image
+          const roseContainer = document.getElementById('avy-rose');
+          if (forecast.danger_rose_image) {
+            roseContainer.innerHTML = `<img src="${forecast.danger_rose_image}" alt="Avalanche Danger Rose" style="max-width:170px;width:100%;">`;
+          } else {
+            roseContainer.innerHTML = '';
+          }
         } catch (e) {
           problemsDiv.style.display = 'none';
+          document.getElementById('avy-rose').innerHTML = '';
         }
       })
       .catch(() => {

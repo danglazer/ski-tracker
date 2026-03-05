@@ -12,8 +12,9 @@ from database import (
     init_db, save_snapshot, update_daily_summary, save_snow_report,
     backfill_open_times, backfill_daily_from_snapshots,
     get_daily_digest, get_avalanche_forecast, get_daily_view,
+    get_snow_report,
 )
-from scraper import scrape_all
+from scraper import scrape_all, TRACKED
 from weather import fetch_all_forecasts
 from avalanche import fetch_avalanche_forecast
 from digest import generate_digest, summarize_snow_report
@@ -134,9 +135,21 @@ def run_digest():
         print(f"[digest] Scheduler error: {e}")
 
 
-def maybe_generate_digest():
-    """Generate digest if both avalanche and terrain data are available and digest not yet created."""
+def maybe_generate_digest(force=False):
+    """Generate digest only when avalanche report AND mountain reports are ready.
+
+    Requires:
+    - Avalanche forecast with danger rose image (confirms UAC published)
+    - Terrain data from at least 3 resorts (guards against partial scrape failures)
+    - At least 1 snow report for today (confirms mountain reports are in)
+
+    Args:
+        force: If True, regenerate even if today's digest already exists.
+               Data quality checks still apply.
+    """
     try:
+        import json
+
         now = datetime.now(MTN_TZ)
         today_str = now.strftime("%Y-%m-%d")
 
@@ -145,23 +158,46 @@ def maybe_generate_digest():
             return
 
         # Already have today's digest?
-        existing = get_daily_digest(today_str)
-        if existing and existing.get("digest_text"):
-            return
+        if not force:
+            existing = get_daily_digest(today_str)
+            if existing and existing.get("digest_text"):
+                return
 
-        # Need avalanche forecast for today
+        # Need avalanche forecast with danger rose image (confirms UAC actually published)
         avy = get_avalanche_forecast("salt-lake", today_str)
         if not avy:
             print(f"[digest-trigger] No avalanche forecast yet for {today_str}, waiting...", flush=True)
             return
+        try:
+            fj = json.loads(avy.get("forecast_json", "{}"))
+            if not fj.get("danger_rose_image"):
+                print(f"[digest-trigger] Avalanche forecast missing danger rose image, waiting...", flush=True)
+                return
+        except Exception:
+            print(f"[digest-trigger] Could not parse avalanche forecast JSON, waiting...", flush=True)
+            return
 
-        # Need at least some terrain data for today
+        # Need terrain data from at least 3 resorts (out of 5 tracked)
         view = get_daily_view(today_str)
         if not view:
             print(f"[digest-trigger] No terrain data yet for {today_str}, waiting...", flush=True)
             return
+        resorts_with_data = len(view)
+        if resorts_with_data < 3:
+            print(f"[digest-trigger] Only {resorts_with_data}/5 resorts have terrain data, waiting...", flush=True)
+            return
 
-        print(f"[digest-trigger] Both avalanche and terrain data available, generating digest...", flush=True)
+        # Need at least 1 snow report (confirms mountain report summaries are in)
+        has_snow_report = False
+        for resort in TRACKED:
+            if get_snow_report(resort, today_str):
+                has_snow_report = True
+                break
+        if not has_snow_report:
+            print(f"[digest-trigger] No snow reports yet for {today_str}, waiting...", flush=True)
+            return
+
+        print(f"[digest-trigger] All data ready ({resorts_with_data} resorts, avy rose, snow reports), generating digest...", flush=True)
         run_digest()
     except Exception as e:
         print(f"[digest-trigger] Error: {e}", flush=True)
@@ -184,15 +220,15 @@ def start_scheduler():
     scheduler.add_job(run_avalanche, CronTrigger(hour=12, minute=0, timezone=MTN_TZ))
 
     # Digest: triggered automatically after both avalanche + terrain data arrive
-    # Fallback at 10am in case auto-trigger didn't fire
-    scheduler.add_job(run_digest, CronTrigger(hour=10, minute=0, timezone=MTN_TZ))
+    # Fallback at 10am — still checks data quality, but will regenerate if stale
+    scheduler.add_job(lambda: maybe_generate_digest(force=True), CronTrigger(hour=10, minute=0, timezone=MTN_TZ))
 
     scheduler.start()
     print("Scheduler started:")
     print("  - Terrain scrape: every 15min, 6am-4pm MT")
     print("  - Weather: daily at 6:30am MT")
     print("  - Avalanche: every 15min 5-9am MT + noon")
-    print("  - Digest: auto after avalanche+terrain, fallback 10am MT")
+    print("  - Digest: auto after avy rose+terrain+snow reports ready, fallback 10am MT")
 
     # Run initial fetches in background
     print("Running initial fetches...")

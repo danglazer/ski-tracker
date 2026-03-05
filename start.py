@@ -54,6 +54,7 @@ def run_scrape():
         if timed_out.is_set():
             return
 
+
         saved_count = 0
         for resort, data in results.items():
             if timed_out.is_set():

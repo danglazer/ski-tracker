@@ -561,6 +561,7 @@ def scrape_all(terrain_only=False):
             page = None
             try:
                 page = browser.new_page(user_agent=HEADERS["User-Agent"])
+                page.set_default_timeout(30000)  # 30s max per Playwright operation
                 results[resort_name] = scrape_fn(page, terrain_only=terrain_only)
             except Exception as e:
                 log(f"[scraper] {resort_name} crashed browser: {e}")

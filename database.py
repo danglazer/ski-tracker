@@ -106,22 +106,30 @@ def save_snapshot(resort, terrain_name, status, scraped_at):
 
 
 def update_daily_summary(resort, terrain_name, date_str, status, snowfall_24hr, scraped_at=None):
+    """Update or insert daily summary for a terrain area.
+
+    Args:
+        snowfall_24hr: Snow amount in inches. Pass None to preserve existing DB value
+                      (used in terrain-only mode to avoid overwriting real snow data).
+    """
     conn = _connect()
     c = conn.cursor()
 
     new_ever_opened = 1 if status == "open" else 0
 
     c.execute(
-        "SELECT ever_opened, first_opened_at FROM daily_summary WHERE resort = ? AND terrain_name = ? AND date = ?",
+        "SELECT ever_opened, first_opened_at, snowfall_24hr FROM daily_summary WHERE resort = ? AND terrain_name = ? AND date = ?",
         (resort, terrain_name, date_str),
     )
     row = c.fetchone()
 
     if row is None:
         first_opened = scraped_at if new_ever_opened else None
+        # If snowfall_24hr is None (terrain-only mode), default to 0.0 for new rows
+        snow_val = snowfall_24hr if snowfall_24hr is not None else 0.0
         c.execute(
             "INSERT INTO daily_summary (resort, terrain_name, date, ever_opened, first_opened_at, snowfall_24hr) VALUES (?, ?, ?, ?, ?, ?)",
-            (resort, terrain_name, date_str, new_ever_opened, first_opened, snowfall_24hr),
+            (resort, terrain_name, date_str, new_ever_opened, first_opened, snow_val),
         )
     else:
         existing = row["ever_opened"]
@@ -129,9 +137,11 @@ def update_daily_summary(resort, terrain_name, date_str, status, snowfall_24hr, 
         final_opened = 1 if existing == 1 else new_ever_opened
         # Record first_opened_at only on the first transition to open
         first_opened = existing_time if existing_time else (scraped_at if new_ever_opened else None)
+        # If snowfall_24hr is None (terrain-only mode), keep existing DB value
+        snow_val = snowfall_24hr if snowfall_24hr is not None else row["snowfall_24hr"]
         c.execute(
             "UPDATE daily_summary SET ever_opened = ?, first_opened_at = ?, snowfall_24hr = ? WHERE resort = ? AND terrain_name = ? AND date = ?",
-            (final_opened, first_opened, snowfall_24hr, resort, terrain_name, date_str),
+            (final_opened, first_opened, snow_val, resort, terrain_name, date_str),
         )
 
     conn.commit()

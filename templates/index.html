@@ -1746,6 +1746,7 @@
         // Simple markdown-ish rendering
         const body = document.getElementById('digest-body');
         let html = data.digest_text
+          .replace(/^# .+$/m, '')  // Strip H1 title (card header already shows "Daily Digest")
           .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
           .replace(/^## (.+)$/gm, '<h2>$1</h2>')
           .replace(/^- (.+)$/gm, '<li>$1</li>')

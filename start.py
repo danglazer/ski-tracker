@@ -130,16 +130,21 @@ def run_weather():
 
 
 def run_avalanche():
-    """Fetch UAC avalanche forecast (skip if already have today's with image)."""
+    """Fetch UAC avalanche forecast (skip if already have today's with image AND correct date)."""
     today = datetime.now(MTN_TZ).strftime("%Y-%m-%d")
     existing = get_avalanche_forecast("salt-lake", today)
     if existing:
         try:
             import json
             fj = json.loads(existing.get("forecast_json", "{}"))
-            if fj.get("danger_rose_image"):
-                print(f"[avalanche] Forecast with rose image exists for {today}, skipping")
+            issued_date = fj.get("issued_date", "")
+            # Only skip if forecast has a rose image AND was actually issued today
+            # (prevents caching yesterday's stale forecast as today's)
+            if fj.get("danger_rose_image") and issued_date == today:
+                print(f"[avalanche] Today's forecast (issued {issued_date}) with rose image exists, skipping")
                 return
+            elif fj.get("danger_rose_image") and issued_date != today:
+                print(f"[avalanche] Existing forecast was issued {issued_date}, not today ({today}). Re-fetching...")
         except Exception:
             pass
     try:
@@ -187,7 +192,7 @@ def maybe_generate_digest(force=False):
             if existing and existing.get("digest_text"):
                 return
 
-        # 1. Need avalanche forecast with danger rose image
+        # 1. Need avalanche forecast with danger rose image, issued today
         avy = get_avalanche_forecast("salt-lake", today_str)
         if not avy:
             print(f"[digest-trigger] Waiting: no avalanche forecast for {today_str}", flush=True)
@@ -196,6 +201,10 @@ def maybe_generate_digest(force=False):
             fj = json.loads(avy.get("forecast_json", "{}"))
             if not fj.get("danger_rose_image"):
                 print(f"[digest-trigger] Waiting: avalanche forecast missing danger rose image", flush=True)
+                return
+            issued_date = fj.get("issued_date", "")
+            if issued_date and issued_date != today_str:
+                print(f"[digest-trigger] Waiting: avalanche forecast is from {issued_date}, not today ({today_str})", flush=True)
                 return
         except Exception:
             print(f"[digest-trigger] Waiting: could not parse avalanche forecast JSON", flush=True)

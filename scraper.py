@@ -100,11 +100,11 @@ def scrape_snowbird(page):
             page.wait_for_timeout(3000)
             text = page.inner_text("body")
             raw_report_text = text[:3000]
-            m = re.search(r"24[\s\-]*(?:Hour|Hr)[\s\-]*Snow\s*([\d.]+)", text, re.IGNORECASE)
+            m = re.search(r"24[\s\-]*(?:Hours?|Hrs?)[\s\-]*Snow\s*([\d.]+)", text, re.IGNORECASE)
             if m:
                 snow_24hr = float(m.group(1))
             else:
-                m2 = re.search(r"([\d.]+)\s*[\"″]\s*24", text)
+                m2 = re.search(r"([\d.]+)\s*[\"″\u201c\u201d]\s*24", text)
                 if m2:
                     snow_24hr = float(m2.group(1))
             # Extract structured snow report
@@ -207,9 +207,14 @@ def scrape_brighton(page):
         snow_24hr = 0.0
         raw_report_text = ""
         try:
+            # Wait for snow section to render (may load after trail data)
+            try:
+                page.wait_for_selector("text=Snow 24 Hrs", timeout=10000)
+            except Exception:
+                log("[brighton] Snow section didn't appear in 10s, reading what we have")
             text = page.inner_text("body")
             raw_report_text = text[:3000]
-            m = re.search(r"([\d.]+)[\"″\s]*Snow\s*24\s*Hrs", text, re.IGNORECASE)
+            m = re.search(r"([\d.]+)[\"″\u201c\u201d\s]*Snow\s*24\s*Hrs", text, re.IGNORECASE)
             if m:
                 snow_24hr = float(m.group(1))
             else:
@@ -289,13 +294,20 @@ def scrape_snowbasin():
 
         page_text = soup.get_text()
         snow_24hr = 0.0
-        m = re.search(r"24[\s\-]*(?:Hour|Hr|Hrs?)[\s\-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", page_text, re.IGNORECASE)
+        # Snowbasin format: number on its own line, then "24 hours" label below
+        # e.g. '2\u201d\n\n24 hours' — number BEFORE label, curly quote U+201D
+        m = re.search(r"(\d+(?:\.\d+)?)[\"″\u201c\u201d]?\s+24\s*(?:hours?|hrs?)", page_text, re.IGNORECASE)
         if m:
             snow_24hr = float(m.group(1))
         else:
-            m2 = re.search(r"(?:New|Fresh)\s+Snow[:\s]*([\d.]+)", page_text, re.IGNORECASE)
+            # Fallback: label before number (older format)
+            m2 = re.search(r"24[\s\-]*(?:Hours?|Hrs?)[\s\-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", page_text, re.IGNORECASE)
             if m2:
                 snow_24hr = float(m2.group(1))
+            else:
+                m3 = re.search(r"(?:New|Fresh)\s+Snow[:\s]*([\d.]+)", page_text, re.IGNORECASE)
+                if m3:
+                    snow_24hr = float(m3.group(1))
 
         raw_report_text = page_text[:3000]
 
@@ -360,7 +372,7 @@ def scrape_solitude(page):
                         terrain_results[name] = "open"
 
         snow_24hr = 0.0
-        m = re.search(r"24[\s\-]*(?:Hour|Hr|Hrs?)[\s\-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", text, re.IGNORECASE)
+        m = re.search(r"24[\s\-]*(?:Hours?|Hrs?)[\s\-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", text, re.IGNORECASE)
         if m:
             snow_24hr = float(m.group(1))
         else:
@@ -368,7 +380,7 @@ def scrape_solitude(page):
             if m2:
                 snow_24hr = float(m2.group(1))
             else:
-                m3 = re.search(r"([\d.]+)[\"″\s]*(?:in)?\s*(?:new|last|24)", text, re.IGNORECASE)
+                m3 = re.search(r"([\d.]+)[\"″\u201c\u201d\s]*(?:in)?\s*(?:new|last|24)", text, re.IGNORECASE)
                 if m3:
                     snow_24hr = float(m3.group(1))
 
@@ -462,11 +474,11 @@ def scrape_powdermountain(page):
         raw_report_text = ""
         try:
             raw_report_text = text[:3000]
-            m = re.search(r"24[\s\-]*(?:Hour|Hr|Hrs?)[\s\-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", text, re.IGNORECASE)
+            m = re.search(r"24[\s\-]*(?:Hours?|Hrs?)[\s\-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", text, re.IGNORECASE)
             if m:
                 snow_24hr = float(m.group(1))
             else:
-                m2 = re.search(r"([\d.]+)[\"″\s]*(?:in)?[\s]*(?:new|overnight|24)", text, re.IGNORECASE)
+                m2 = re.search(r"([\d.]+)[\"″\u201c\u201d\s]*(?:in)?[\s]*(?:new|overnight|24)", text, re.IGNORECASE)
                 if m2:
                     snow_24hr = float(m2.group(1))
                 else:

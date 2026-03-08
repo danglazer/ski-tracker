@@ -24,3 +24,13 @@ primary_region = 'dfw'
   memory = '1gb'
   cpus = 1
   memory_mb = 1024
+
+[checks]
+  [checks.health]
+    type = "http"
+    port = 8080
+    method = "GET"
+    path = "/health"
+    interval = "30s"
+    timeout = "5s"
+    grace_period = "60s"

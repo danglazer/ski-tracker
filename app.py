@@ -1,3 +1,4 @@
+import threading
 from datetime import datetime
 
 import pytz
@@ -13,6 +14,7 @@ from database import (
 from scraper import TRACKED
 
 app = Flask(__name__)
+app.scrape_lock = threading.Lock()  # Prevents concurrent scrapes (OOM risk on 1GB VM)
 MTN_TZ = pytz.timezone("America/Denver")
 
 init_db()
@@ -21,6 +23,36 @@ init_db()
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+@app.route("/health")
+def health():
+    """Health check endpoint for Fly.io monitoring."""
+    last = get_last_scrape_time()
+    now = datetime.now(MTN_TZ)
+    status_str = "ok"
+    stale = False
+
+    if last:
+        try:
+            last_dt = datetime.fromisoformat(last)
+            if last_dt.tzinfo is None:
+                last_dt = MTN_TZ.localize(last_dt)
+            minutes_ago = (now - last_dt).total_seconds() / 60
+            # Flag as stale if no scrape in 30+ minutes during operating hours
+            if minutes_ago > 30 and 6 <= now.hour <= 16:
+                stale = True
+                status_str = "stale"
+        except Exception:
+            pass
+    else:
+        status_str = "no_data"
+
+    return jsonify({
+        "status": status_str,
+        "last_scrape": last,
+        "stale": stale,
+    })
 
 
 @app.route("/api/dates")
@@ -127,31 +159,40 @@ def api_status():
 @app.route("/api/scrape", methods=["POST"])
 def api_scrape():
     """Manually trigger a full scrape cycle."""
-    import threading
     from scraper import scrape_all
     from database import save_snapshot, update_daily_summary, save_snow_report
     from digest import summarize_snow_report
     from avalanche import fetch_avalanche_forecast
 
     def do_scrape():
-        now = datetime.now(MTN_TZ)
-        date_str = now.strftime("%Y-%m-%d")
-        scraped_at = now.isoformat()
+        if not app.scrape_lock.acquire(blocking=False):
+            print("[scrape] Another scrape is running, skipping manual trigger.", flush=True)
+            return
         try:
-            results = scrape_all()
-            for resort, data in results.items():
-                snow = data.get("snow_24hr", 0.0)
-                for t in data.get("terrain", []):
-                    save_snapshot(resort, t["name"], t["status"], scraped_at)
-                    update_daily_summary(resort, t["name"], date_str, t["status"], snow, scraped_at)
-                raw_text = data.get("raw_report_text", "")
-                if raw_text and len(raw_text.strip()) > 50:
-                    summary = summarize_snow_report(resort, raw_text)
-                    if summary:
-                        save_snow_report(resort, date_str, summary, scraped_at)
-        except Exception as e:
-            print(f"[scrape] Terrain scrape error: {e}")
-        fetch_avalanche_forecast()
+            now = datetime.now(MTN_TZ)
+            date_str = now.strftime("%Y-%m-%d")
+            scraped_at = now.isoformat()
+            try:
+                results = scrape_all()
+                for resort, data in results.items():
+                    terrain = data.get("terrain", [])
+                    if not terrain:
+                        print(f"  [scrape] WARNING: {resort} returned no terrain, skipping save", flush=True)
+                        continue
+                    snow = data.get("snow_24hr")
+                    for t in terrain:
+                        save_snapshot(resort, t["name"], t["status"], scraped_at)
+                        update_daily_summary(resort, t["name"], date_str, t["status"], snow, scraped_at)
+                    raw_text = data.get("raw_report_text", "")
+                    if raw_text and len(raw_text.strip()) > 50:
+                        summary = summarize_snow_report(resort, raw_text)
+                        if summary:
+                            save_snow_report(resort, date_str, summary, scraped_at)
+            except Exception as e:
+                print(f"[scrape] Terrain scrape error: {e}")
+            fetch_avalanche_forecast()
+        finally:
+            app.scrape_lock.release()
 
     threading.Thread(target=do_scrape, daemon=True).start()
     return jsonify({"status": "scrape started"}), 202
@@ -180,7 +221,6 @@ def api_backfill():
 
 @app.route("/api/generate-digest", methods=["POST"])
 def api_generate_digest():
-    import threading
     from digest import generate_digest
     threading.Thread(target=generate_digest, daemon=True).start()
     return jsonify({"status": "digest generation started"}), 202

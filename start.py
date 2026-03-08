@@ -31,70 +31,94 @@ def run_scrape():
     date_str = now.strftime("%Y-%m-%d")
     scraped_at = now.isoformat()
 
-    # Use a threading.Timer as a watchdog instead of signal.SIGALRM
-    # (signals only work in the main thread)
-    timed_out = threading.Event()
-
-    def _watchdog():
-        timed_out.set()
-        print(f"[{scraped_at}] Scrape timed out after {SCRAPE_TIMEOUT}s.\n", flush=True)
-
-    watchdog = threading.Timer(SCRAPE_TIMEOUT, _watchdog)
-    watchdog.daemon = True
-    watchdog.start()
+    # Acquire scrape lock to prevent concurrent scrapes (OOM risk on 1GB VM)
+    if not app.scrape_lock.acquire(blocking=False):
+        print(f"[{scraped_at}] Scrape already running, skipping.", flush=True)
+        return
 
     try:
-        print(f"\n[{scraped_at}] Starting scrape...", flush=True)
+        # Determine if we can do terrain-only mode.
+        # Check which resorts already have snow reports for today.
+        resorts_needing_reports = []
+        for resort in TRACKED:
+            if not get_snow_report(resort, date_str):
+                resorts_needing_reports.append(resort)
+
+        terrain_only = len(resorts_needing_reports) == 0
+        if terrain_only:
+            print(f"\n[{scraped_at}] All snow reports in, running terrain-only scrape.", flush=True)
+        else:
+            print(f"\n[{scraped_at}] Starting full scrape (need reports for: {resorts_needing_reports})...", flush=True)
+
+        # Use a threading.Timer as a watchdog instead of signal.SIGALRM
+        # (signals only work in the main thread)
+        timed_out = threading.Event()
+
+        def _watchdog():
+            timed_out.set()
+            print(f"[{scraped_at}] Scrape timed out after {SCRAPE_TIMEOUT}s.\n", flush=True)
+
+        watchdog = threading.Timer(SCRAPE_TIMEOUT, _watchdog)
+        watchdog.daemon = True
+        watchdog.start()
 
         try:
-            results = scrape_all()
-        except Exception as e:
-            print(f"[scraper] FATAL: scrape_all() crashed: {e}", flush=True)
-            return
-
-        if timed_out.is_set():
-            return
-
-
-        saved_count = 0
-        for resort, data in results.items():
-            if timed_out.is_set():
-                print(f"[scraper] Timeout reached, stopping save loop.", flush=True)
-                break
-
-            snow = data.get("snow_24hr", 0.0)
-            terrain = data.get("terrain", [])
-            if not terrain:
-                print(f"  [scraper] WARNING: {resort} returned no terrain data", flush=True)
-            for t in terrain:
-                name = t["name"]
-                status = t["status"]
-                print(f"  {resort} | {name} | {status}", flush=True)
-                try:
-                    save_snapshot(resort, name, status, scraped_at)
-                    update_daily_summary(resort, name, date_str, status, snow, scraped_at)
-                    saved_count += 1
-                except Exception as e:
-                    print(f"  [scraper] ERROR saving {resort}/{name}: {e}", flush=True)
-
-            # Summarize raw page text into a snow report via Claude API
             try:
-                raw_text = data.get("raw_report_text", "")
-                if raw_text and len(raw_text.strip()) > 50:
-                    summary = summarize_snow_report(resort, raw_text)
-                    if summary:
-                        save_snow_report(resort, date_str, summary, scraped_at)
+                results = scrape_all(terrain_only=terrain_only)
             except Exception as e:
-                print(f"  [scraper] ERROR summarizing {resort} snow report: {e}", flush=True)
+                print(f"[scraper] FATAL: scrape_all() crashed: {e}", flush=True)
+                return
 
-        print(f"[{scraped_at}] Scrape complete. Saved {saved_count} terrain entries.\n", flush=True)
-    except Exception as e:
-        print(f"[{scraped_at}] Scrape error: {e}\n", flush=True)
+            if timed_out.is_set():
+                return
+
+            saved_count = 0
+            for resort, data in results.items():
+                if timed_out.is_set():
+                    print(f"[scraper] Timeout reached, stopping save loop.", flush=True)
+                    break
+
+                terrain = data.get("terrain", [])
+                if not terrain:
+                    print(f"  [scraper] WARNING: {resort} returned no terrain data, skipping save", flush=True)
+                    continue
+
+                snow = data.get("snow_24hr")  # None in terrain-only mode
+                for t in terrain:
+                    name = t["name"]
+                    status = t["status"]
+                    print(f"  {resort} | {name} | {status}", flush=True)
+                    try:
+                        save_snapshot(resort, name, status, scraped_at)
+                        update_daily_summary(resort, name, date_str, status, snow, scraped_at)
+                        saved_count += 1
+                    except Exception as e:
+                        print(f"  [scraper] ERROR saving {resort}/{name}: {e}", flush=True)
+
+                # Summarize raw page text into a snow report via Claude API
+                # Only for resorts that don't have a report yet today
+                if not terrain_only and resort in resorts_needing_reports:
+                    try:
+                        raw_text = data.get("raw_report_text", "")
+                        if raw_text and len(raw_text.strip()) > 50:
+                            # Double-check in case another scrape cycle already saved it
+                            if not get_snow_report(resort, date_str):
+                                summary = summarize_snow_report(resort, raw_text)
+                                if summary:
+                                    save_snow_report(resort, date_str, summary, scraped_at)
+                    except Exception as e:
+                        print(f"  [scraper] ERROR summarizing {resort} snow report: {e}", flush=True)
+
+            print(f"[{scraped_at}] Scrape complete. Saved {saved_count} terrain entries.\n", flush=True)
+        except Exception as e:
+            print(f"[{scraped_at}] Scrape error: {e}\n", flush=True)
+        finally:
+            watchdog.cancel()
+
+        # Check if we can generate today's digest now
+        maybe_generate_digest()
     finally:
-        watchdog.cancel()
-
-    # Check if we can generate today's digest now
-    maybe_generate_digest()
+        app.scrape_lock.release()
 
 
 def run_weather():
@@ -136,12 +160,12 @@ def run_digest():
 
 
 def maybe_generate_digest(force=False):
-    """Generate digest only when avalanche report AND mountain reports are ready.
+    """Generate digest only when ALL required data is in the database.
 
     Requires:
-    - Avalanche forecast with danger rose image (confirms UAC published)
-    - Terrain data from at least 3 resorts (guards against partial scrape failures)
-    - At least 1 snow report for today (confirms mountain reports are in)
+    - Avalanche forecast with danger rose image
+    - Terrain data from ALL 5 resorts
+    - Snow reports from ALL 5 resorts
 
     Args:
         force: If True, regenerate even if today's digest already exists.
@@ -163,41 +187,40 @@ def maybe_generate_digest(force=False):
             if existing and existing.get("digest_text"):
                 return
 
-        # Need avalanche forecast with danger rose image (confirms UAC actually published)
+        # 1. Need avalanche forecast with danger rose image
         avy = get_avalanche_forecast("salt-lake", today_str)
         if not avy:
-            print(f"[digest-trigger] No avalanche forecast yet for {today_str}, waiting...", flush=True)
+            print(f"[digest-trigger] Waiting: no avalanche forecast for {today_str}", flush=True)
             return
         try:
             fj = json.loads(avy.get("forecast_json", "{}"))
             if not fj.get("danger_rose_image"):
-                print(f"[digest-trigger] Avalanche forecast missing danger rose image, waiting...", flush=True)
+                print(f"[digest-trigger] Waiting: avalanche forecast missing danger rose image", flush=True)
                 return
         except Exception:
-            print(f"[digest-trigger] Could not parse avalanche forecast JSON, waiting...", flush=True)
+            print(f"[digest-trigger] Waiting: could not parse avalanche forecast JSON", flush=True)
             return
 
-        # Need terrain data from at least 3 resorts (out of 5 tracked)
+        # 2. Need terrain data from ALL 5 resorts
         view = get_daily_view(today_str)
         if not view:
-            print(f"[digest-trigger] No terrain data yet for {today_str}, waiting...", flush=True)
+            print(f"[digest-trigger] Waiting: no terrain data for {today_str}", flush=True)
             return
-        resorts_with_data = len(view)
-        if resorts_with_data < 3:
-            print(f"[digest-trigger] Only {resorts_with_data}/5 resorts have terrain data, waiting...", flush=True)
+        missing_terrain = [r for r in TRACKED if r not in view]
+        if missing_terrain:
+            print(f"[digest-trigger] Waiting: terrain data missing for {missing_terrain}", flush=True)
             return
 
-        # Need at least 1 snow report (confirms mountain report summaries are in)
-        has_snow_report = False
+        # 3. Need snow reports from ALL 5 resorts
+        missing_reports = []
         for resort in TRACKED:
-            if get_snow_report(resort, today_str):
-                has_snow_report = True
-                break
-        if not has_snow_report:
-            print(f"[digest-trigger] No snow reports yet for {today_str}, waiting...", flush=True)
+            if not get_snow_report(resort, today_str):
+                missing_reports.append(resort)
+        if missing_reports:
+            print(f"[digest-trigger] Waiting: snow reports missing for {missing_reports}", flush=True)
             return
 
-        print(f"[digest-trigger] All data ready ({resorts_with_data} resorts, avy rose, snow reports), generating digest...", flush=True)
+        print(f"[digest-trigger] All data ready (5/5 resorts, avy rose, all snow reports), generating digest...", flush=True)
         run_digest()
     except Exception as e:
         print(f"[digest-trigger] Error: {e}", flush=True)
@@ -210,7 +233,8 @@ def start_scheduler():
     scheduler = BackgroundScheduler(timezone=MTN_TZ)
 
     # Terrain scraping: every 15min, 6am-4pm MT
-    scheduler.add_job(run_scrape, CronTrigger(hour="6-16", minute="0,15,30,45", timezone=MTN_TZ))
+    # max_instances=1 prevents overlapping scrapes if one runs long
+    scheduler.add_job(run_scrape, CronTrigger(hour="6-16", minute="0,15,30,45", timezone=MTN_TZ), max_instances=1)
 
     # Weather: once daily at 6:30am MT
     scheduler.add_job(run_weather, CronTrigger(hour=6, minute=30, timezone=MTN_TZ))
@@ -225,16 +249,24 @@ def start_scheduler():
 
     scheduler.start()
     print("Scheduler started:")
-    print("  - Terrain scrape: every 15min, 6am-4pm MT")
+    print("  - Terrain scrape: every 15min, 6am-4pm MT (max_instances=1)")
     print("  - Weather: daily at 6:30am MT")
     print("  - Avalanche: every 15min 5-9am MT + noon")
-    print("  - Digest: auto after avy rose+terrain+snow reports ready, fallback 10am MT")
+    print("  - Digest: auto after avy rose + all 5 resort terrain + all 5 snow reports ready, fallback 10am MT")
 
     # Run initial fetches in background
     print("Running initial fetches...")
     threading.Thread(target=run_weather, daemon=True).start()
     threading.Thread(target=run_avalanche, daemon=True).start()
     threading.Thread(target=run_scrape, daemon=True).start()
+
+    # After startup, wait 2 min then check if digest was missed (e.g., VM restart mid-morning)
+    def _startup_digest_check():
+        time.sleep(120)
+        print("[startup] Checking if digest was missed...", flush=True)
+        maybe_generate_digest()
+
+    threading.Thread(target=_startup_digest_check, daemon=True).start()
 
 
 if __name__ == "__main__":

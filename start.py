@@ -23,6 +23,7 @@ from app import app
 MTN_TZ = pytz.timezone("America/Denver")
 
 SCRAPE_TIMEOUT = 10 * 60  # 10 minutes max per scrape cycle
+REPORT_CUTOFF_HOUR = 9   # Before 9am MT: full scrapes to capture fresh reports as resorts update
 
 
 
@@ -30,6 +31,7 @@ def run_scrape():
     now = datetime.now(MTN_TZ)
     date_str = now.strftime("%Y-%m-%d")
     scraped_at = now.isoformat()
+    morning_mode = now.hour < REPORT_CUTOFF_HOUR
 
     # Acquire scrape lock to prevent concurrent scrapes (OOM risk on 1GB VM)
     if not app.scrape_lock.acquire(blocking=False):
@@ -37,17 +39,24 @@ def run_scrape():
         return
 
     try:
-        # Determine if we can do terrain-only mode.
-        # Check which resorts already have snow reports for today.
+        # Check which resorts still need snow reports for today.
         resorts_needing_reports = []
         for resort in TRACKED:
             if not get_snow_report(resort, date_str):
                 resorts_needing_reports.append(resort)
 
-        terrain_only = len(resorts_needing_reports) == 0
-        if terrain_only:
+        # Before 9am: always do full scrapes and refresh ALL reports
+        # (resorts update their pages 5:30-7:30am, so early scrapes get stale data)
+        # After 9am: switch to terrain-only once all reports are in
+        if morning_mode:
+            terrain_only = False
+            resorts_needing_reports = list(TRACKED.keys())
+            print(f"\n[{scraped_at}] Morning mode: full scrape for all resorts.", flush=True)
+        elif len(resorts_needing_reports) == 0:
+            terrain_only = True
             print(f"\n[{scraped_at}] All snow reports in, running terrain-only scrape.", flush=True)
         else:
+            terrain_only = False
             print(f"\n[{scraped_at}] Starting full scrape (need reports for: {resorts_needing_reports})...", flush=True)
 
         # Use a threading.Timer as a watchdog instead of signal.SIGALRM
@@ -96,16 +105,15 @@ def run_scrape():
                         print(f"  [scraper] ERROR saving {resort}/{name}: {e}", flush=True)
 
                 # Summarize raw page text into a snow report via Claude API
-                # Only for resorts that don't have a report yet today
+                # Morning mode: overwrite existing reports with fresh data
+                # After 9am: only generate for resorts missing reports
                 if not terrain_only and resort in resorts_needing_reports:
                     try:
                         raw_text = data.get("raw_report_text", "")
                         if raw_text and len(raw_text.strip()) > 50:
-                            # Double-check in case another scrape cycle already saved it
-                            if not get_snow_report(resort, date_str):
-                                summary = summarize_snow_report(resort, raw_text)
-                                if summary:
-                                    save_snow_report(resort, date_str, summary, scraped_at)
+                            summary = summarize_snow_report(resort, raw_text)
+                            if summary:
+                                save_snow_report(resort, date_str, summary, scraped_at)
                     except Exception as e:
                         print(f"  [scraper] ERROR summarizing {resort} snow report: {e}", flush=True)
 
@@ -182,8 +190,9 @@ def maybe_generate_digest(force=False):
         now = datetime.now(MTN_TZ)
         today_str = now.strftime("%Y-%m-%d")
 
-        # Don't run before 6am
-        if now.hour < 6:
+        # Don't generate before 9am — snow reports are still being refreshed during morning mode
+        if now.hour < REPORT_CUTOFF_HOUR:
+            print(f"[digest-trigger] Before {REPORT_CUTOFF_HOUR}am, waiting for reports to stabilize.", flush=True)
             return
 
         # Already have today's digest?

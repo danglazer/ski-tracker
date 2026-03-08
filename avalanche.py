@@ -97,8 +97,49 @@ def _clean_html(html_str):
     return re.sub(r"\s+", " ", text).strip()
 
 
+def _get_issued_date(advisory, data):
+    """Extract the date the forecast was issued, using the Unix timestamp.
+
+    Returns a YYYY-MM-DD string in Mountain Time, or None if unparseable.
+    """
+    # Prefer the Unix timestamp (most reliable)
+    ts = advisory.get("date_issued_timestamp") or data.get("date_issued_timestamp")
+    if ts:
+        try:
+            issued_dt = datetime.fromtimestamp(int(ts), tz=MTN_TZ)
+            return issued_dt.strftime("%Y-%m-%d")
+        except (ValueError, TypeError, OSError):
+            pass
+
+    # Fallback: parse the human-readable date_issued string
+    # Format: "Sunday, March 8, 2026 - 6:22am" or "Saturday, March 7, 2026 at 6:49 AM"
+    date_str_raw = advisory.get("date_issued", "") or data.get("date_issued", "")
+    if date_str_raw:
+        for fmt in ["%A, %B %d, %Y - %I:%M%p", "%A, %B %d, %Y at %I:%M %p"]:
+            try:
+                issued_dt = datetime.strptime(date_str_raw.strip(), fmt)
+                return issued_dt.strftime("%Y-%m-%d")
+            except ValueError:
+                continue
+        # Last resort: look for a YYYY pattern and month/day
+        m = re.search(r"(\w+)\s+(\d{1,2}),?\s+(\d{4})", date_str_raw)
+        if m:
+            try:
+                issued_dt = datetime.strptime(f"{m.group(1)} {m.group(2)} {m.group(3)}", "%B %d %Y")
+                return issued_dt.strftime("%Y-%m-%d")
+            except ValueError:
+                pass
+
+    return None
+
+
 def fetch_avalanche_forecast():
-    """Fetch today's avalanche forecast from UAC and save to DB."""
+    """Fetch today's avalanche forecast from UAC and save to DB.
+
+    Only saves if the forecast was actually issued today. If the UAC API
+    still returns yesterday's forecast (before ~6:30am), we skip saving
+    and let the scheduler try again on the next cycle.
+    """
     now = datetime.now(MTN_TZ)
     date_str = now.strftime("%Y-%m-%d")
     fetched_at = now.isoformat()
@@ -119,6 +160,12 @@ def fetch_avalanche_forecast():
         # Fallback: maybe it's data["advisory"] directly
         if not advisory:
             advisory = data.get("advisory", data)
+
+        # Check if the forecast was actually issued today
+        issued_date = _get_issued_date(advisory, data)
+        if issued_date and issued_date != date_str:
+            print(f"[avalanche] Forecast is from {issued_date}, not today ({date_str}). Skipping — UAC hasn't posted yet.", flush=True)
+            return False
 
         # Extract bottom line (HTML content)
         bottom_line = _clean_html(
@@ -141,12 +188,14 @@ def fetch_avalanche_forecast():
                 rose_image_url = match.group(1)
 
         # Store structured data for frontend
+        date_issued_str = advisory.get("date_issued", "") or data.get("date_issued", "")
         stored_data = {
             "overall_danger": overall_danger,
             "bottom_line": bottom_line,
             "danger_rose_image": rose_image_url,
             "problems": problems,
-            "forecast_date": advisory.get("date_issued", "") or data.get("date_issued", ""),
+            "forecast_date": date_issued_str,
+            "issued_date": issued_date,  # YYYY-MM-DD for easy comparison
         }
 
         save_avalanche_forecast(
@@ -154,7 +203,7 @@ def fetch_avalanche_forecast():
             json.dumps(stored_data), fetched_at
         )
 
-        print(f"[avalanche] Danger: {overall_danger}, Problems: {len(problems)}, Bottom line: {len(bottom_line)} chars")
+        print(f"[avalanche] Saved forecast issued {issued_date}. Danger: {overall_danger}, Problems: {len(problems)}, Bottom line: {len(bottom_line)} chars")
         return True
 
     except Exception as e:

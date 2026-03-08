@@ -169,11 +169,24 @@ def api_scrape():
             print("[scrape] Another scrape is running, skipping manual trigger.", flush=True)
             return
         try:
+            timed_out = threading.Event()
+
+            def _watchdog():
+                timed_out.set()
+                print("[scrape] Manual scrape timed out after 300s.", flush=True)
+
+            watchdog = threading.Timer(300, _watchdog)  # 5 min timeout
+            watchdog.daemon = True
+            watchdog.start()
+
             now = datetime.now(MTN_TZ)
             date_str = now.strftime("%Y-%m-%d")
             scraped_at = now.isoformat()
             try:
                 results = scrape_all()
+                if timed_out.is_set():
+                    print("[scrape] Manual scrape already timed out, skipping save.", flush=True)
+                    return
                 for resort, data in results.items():
                     terrain = data.get("terrain", [])
                     if not terrain:
@@ -190,6 +203,8 @@ def api_scrape():
                             save_snow_report(resort, date_str, summary, scraped_at)
             except Exception as e:
                 print(f"[scrape] Terrain scrape error: {e}")
+            finally:
+                watchdog.cancel()
             fetch_avalanche_forecast()
         finally:
             app.scrape_lock.release()

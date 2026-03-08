@@ -100,7 +100,7 @@ def scrape_snowbird(page, terrain_only=False):
                 log("[snowbird] Loading conditions page...")
                 page.goto(conditions_url, timeout=30000, wait_until="domcontentloaded")
                 page.wait_for_timeout(3000)
-                text = page.inner_text("body")
+                text = page.evaluate("() => document.body.innerText")
                 raw_report_text = text[:3000]
                 m = re.search(r"24[\s\-]*(?:Hours?|Hrs?)[\s\-]*Snow\s*([\d.]+)", text, re.IGNORECASE)
                 if m:
@@ -216,7 +216,7 @@ def scrape_brighton(page, terrain_only=False):
                     page.wait_for_selector("text=Snow 24 Hrs", timeout=10000)
                 except Exception:
                     log("[brighton] Snow section didn't appear in 10s, reading what we have")
-                text = page.inner_text("body")
+                text = page.evaluate("() => document.body.innerText")
                 raw_report_text = text[:3000]
                 m = re.search(r"([\d.]+)[\"″\u201c\u201d\s]*Snow\s*24\s*Hrs", text, re.IGNORECASE)
                 if m:
@@ -346,7 +346,7 @@ def scrape_solitude(page, terrain_only=False):
         page.wait_for_timeout(5000)
 
         content = page.content()
-        text = page.inner_text("body")
+        text = page.evaluate("() => document.body.innerText")
 
         soup = BeautifulSoup(content, "html.parser")
 
@@ -422,7 +422,7 @@ def scrape_powdermountain(page, terrain_only=False):
             pass
         page.wait_for_timeout(5000)
 
-        text = page.inner_text("body")
+        text = page.evaluate("() => document.body.innerText")
 
         # Strategy 1: Search full page text line by line
         for line in text.splitlines():

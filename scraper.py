@@ -418,24 +418,33 @@ def scrape_all():
     # Snowbasin doesn't need Playwright — do it first
     results["snowbasin"] = scrape_snowbasin()
 
-    # Launch ONE browser for all Playwright resorts
+    # Playwright resorts: fresh page per resort to limit memory buildup
+    pw_resorts = [
+        ("snowbird", scrape_snowbird),
+        ("brighton", scrape_brighton),
+        ("solitude", scrape_solitude),
+        ("powdermountain", scrape_powdermountain),
+    ]
+
     log("[scraper] Launching Chromium...")
     try:
         with sync_playwright() as p:
             browser = p.chromium.launch(headless=True, args=CHROMIUM_ARGS)
-            page = browser.new_page(user_agent=HEADERS["User-Agent"])
 
-            # Scrape each resort one at a time, reusing the same page
-            results["snowbird"] = scrape_snowbird(page)
-            results["brighton"] = scrape_brighton(page)
-            results["solitude"] = scrape_solitude(page)
-            results["powdermountain"] = scrape_powdermountain(page)
+            for resort_name, scrape_fn in pw_resorts:
+                page = browser.new_page(user_agent=HEADERS["User-Agent"])
+                try:
+                    results[resort_name] = scrape_fn(page)
+                except Exception as e:
+                    log(f"[scraper] {resort_name} error: {e}")
+                    results[resort_name] = {"snow_24hr": 0.0, "terrain": []}
+                finally:
+                    page.close()
 
             browser.close()
         log("[scraper] Chromium closed.")
     except Exception as e:
         log(f"[scraper] Chromium error: {e}")
-        # Fill in missing resorts with empty data
         for resort in ["snowbird", "brighton", "solitude", "powdermountain"]:
             if resort not in results:
                 results[resort] = {"snow_24hr": 0.0, "terrain": []}

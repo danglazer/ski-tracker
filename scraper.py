@@ -25,7 +25,6 @@ TRACKED = {
     "solitude": ["Honeycomb Canyon", "Summit Express", "Highway to Heaven", "Fantasy Ridge", "Evergreen Peak"],
     "brighton": ["Milly Bowl", "Snake Bowl"],
     "snowbasin": ["Allen Peak Tram", "Strawberry Gondola", "Middle Bowl Cirque Gate", "Upper Mt Ogden Bowl Gate"],
-    "powdermountain": ["James Peak"],
 }
 
 
@@ -42,7 +41,7 @@ def normalize_status(raw):
     return "closed"
 
 
-def scrape_snowbird(page, terrain_only=False):
+def scrape_snowbird(page):
     """Snowbird: SVG fill colors #8BC53F=open, #D0021B=closed in td.name+td.status rows."""
     try:
         terrain_url = "https://www.snowbird.com/the-mountain/mountain-report/lift-trail-report/"
@@ -56,7 +55,7 @@ def scrape_snowbird(page, terrain_only=False):
         terrain_results = {t: "closed" for t in TRACKED["snowbird"]}
 
         log("[snowbird] Loading terrain page...")
-        page.goto(terrain_url, timeout=30000, wait_until="domcontentloaded")
+        page.goto(terrain_url, timeout=60000)
         try:
             page.wait_for_selector("td.name", timeout=15000)
         except Exception:
@@ -92,81 +91,41 @@ def scrape_snowbird(page, terrain_only=False):
 
         log(f"[snowbird] Terrain done: {terrain_results}")
 
-        snow_24hr = None if terrain_only else 0.0
-        raw_report_text = ""
+        snow_24hr = 0.0
+        try:
+            log("[snowbird] Loading conditions page...")
+            page.goto(conditions_url, timeout=60000)
+            page.wait_for_timeout(3000)
+            text = page.inner_text("body")
+            m = re.search(r"24[\s\-]*(?:Hour|Hr)[\s\-]*Snow\s*([\d.]+)", text, re.IGNORECASE)
+            if m:
+                snow_24hr = float(m.group(1))
+            else:
+                m2 = re.search(r"([\d.]+)\s*[\"″]\s*24", text)
+                if m2:
+                    snow_24hr = float(m2.group(1))
+        except Exception as e:
+            log(f"[snowbird] Failed to get snow data: {e}")
 
-        if not terrain_only:
-            try:
-                log("[snowbird] Loading conditions page...")
-                page.goto(conditions_url, timeout=30000, wait_until="domcontentloaded")
-                page.wait_for_timeout(3000)
-                text = page.evaluate("() => document.body.innerText")
-                raw_report_text = text[:3000]
-                m = re.search(r"24[\s\-]*(?:Hours?|Hrs?)[\s\-]*Snow\s*([\d.]+)", text, re.IGNORECASE)
-                if m:
-                    snow_24hr = float(m.group(1))
-                else:
-                    m2 = re.search(r"([\d.]+)\s*[\"″\u201c\u201d]\s*24", text)
-                    if m2:
-                        snow_24hr = float(m2.group(1))
-                # Extract structured snow report
-                try:
-                    report_text = page.evaluate("""
-                        () => {
-                            const data = {};
-
-                            // Grab key stats from the conditions page
-                            const body = document.body.innerText;
-
-                            // Look for specific snow metrics
-                            const metrics = [
-                                /24[\\s-]*(?:Hour|Hr)s?[\\s-]*(?:Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
-                                /48[\\s-]*(?:Hour|Hr)s?[\\s-]*(?:Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
-                                /Base[\\s-]*Depth[:\\s]*(\\d+[\\.]?\\d*)/i,
-                                /Season[\\s-]*(?:Total|Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
-                                /(?:Mid[\\s-]*)?Mountain[\\s-]*Temp(?:erature)?[:\\s]*(-?\\d+)/i,
-                                /Summit[\\s-]*Temp(?:erature)?[:\\s]*(-?\\d+)/i,
-                            ];
-                            const labels = [
-                                '24hr Snowfall', '48hr Snowfall', 'Base Depth',
-                                'Season Total', 'Mountain Temp', 'Summit Temp'
-                            ];
-                            const units = ['"', '"', '"', '"', '°F', '°F'];
-
-                            const parts = [];
-                            for (let i = 0; i < metrics.length; i++) {
-                                const m = body.match(metrics[i]);
-                                if (m) parts.push(labels[i] + ': ' + m[1] + units[i]);
-                            }
-
-                            return parts.join('\\n');
-                        }
-                    """)
-                except Exception:
-                    pass
-            except Exception as e:
-                log(f"[snowbird] Failed to get snow data: {e}")
-
-        log(f"[snowbird] Done. Snow: {snow_24hr}, Raw report: {len(raw_report_text)} chars")
+        log(f"[snowbird] Done. Snow: {snow_24hr}")
         return {
             "snow_24hr": snow_24hr,
-            "raw_report_text": raw_report_text,
             "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["snowbird"]],
         }
 
     except Exception as e:
         log(f"[snowbird] Scraper error: {e}")
-        return {"snow_24hr": 0.0, "terrain": [], "raw_report_text": ""}
+        return {"snow_24hr": 0.0, "terrain": []}
 
 
-def scrape_brighton(page, terrain_only=False):
+def scrape_brighton(page):
     """Brighton: JS-rendered, status via <img alt="Open"> or <img alt="Closed">."""
     try:
         url = "https://www.brightonresort.com/conditions"
         terrain_results = {t: "closed" for t in TRACKED["brighton"]}
 
         log("[brighton] Loading page...")
-        page.goto(url, timeout=30000, wait_until="domcontentloaded")
+        page.goto(url, timeout=60000)
         try:
             page.wait_for_selector("text=Trail Status", timeout=15000)
         except Exception:
@@ -206,70 +165,31 @@ def scrape_brighton(page, terrain_only=False):
 
         log(f"[brighton] Terrain done: {terrain_results}")
 
-        snow_24hr = None if terrain_only else 0.0
-        raw_report_text = ""
+        snow_24hr = 0.0
+        try:
+            text = page.inner_text("body")
+            m = re.search(r"([\d.]+)[\"″\s]*Snow\s*24\s*Hrs", text, re.IGNORECASE)
+            if m:
+                snow_24hr = float(m.group(1))
+            else:
+                m2 = re.search(r"Snow\s*24\s*Hrs[.\s]*([\d.]+)", text, re.IGNORECASE)
+                if m2:
+                    snow_24hr = float(m2.group(1))
+        except Exception as e:
+            log(f"[brighton] Failed to get snow data: {e}")
 
-        if not terrain_only:
-            try:
-                # Wait for snow section to render (may load after trail data)
-                try:
-                    page.wait_for_selector("text=Snow 24 Hrs", timeout=10000)
-                except Exception:
-                    log("[brighton] Snow section didn't appear in 10s, reading what we have")
-                text = page.evaluate("() => document.body.innerText")
-                raw_report_text = text[:3000]
-                m = re.search(r"([\d.]+)[\"″\u201c\u201d\s]*Snow\s*24\s*Hrs", text, re.IGNORECASE)
-                if m:
-                    snow_24hr = float(m.group(1))
-                else:
-                    m2 = re.search(r"Snow\s*24\s*Hrs[.\s]*([\d.]+)", text, re.IGNORECASE)
-                    if m2:
-                        snow_24hr = float(m2.group(1))
-                # Extract structured snow report
-                try:
-                    report_text = page.evaluate("""
-                        () => {
-                            const body = document.body.innerText;
-                            const metrics = [
-                                /Snow\\s*24\\s*Hrs?[.:\\s]*(\\d+[\\.]?\\d*)/i,
-                                /Snow\\s*48\\s*Hrs?[.:\\s]*(\\d+[\\.]?\\d*)/i,
-                                /(?:Base|Snow)\\s*Depth[:\\s]*(\\d+[\\.]?\\d*)/i,
-                                /Season[\\s-]*(?:Total|Snow(?:fall)?)[:\\s]*(\\d+[\\.]?\\d*)/i,
-                                /(?:Current\\s+)?Temp(?:erature)?[:\\s]*(-?\\d+)/i,
-                            ];
-                            const labels = [
-                                '24hr Snowfall', '48hr Snowfall', 'Base Depth',
-                                'Season Total', 'Temperature'
-                            ];
-                            const units = ['"', '"', '"', '"', '°F'];
-
-                            const parts = [];
-                            for (let i = 0; i < metrics.length; i++) {
-                                const m = body.match(metrics[i]);
-                                if (m) parts.push(labels[i] + ': ' + m[1] + units[i]);
-                            }
-
-                            return parts.join('\\n');
-                        }
-                    """)
-                except Exception:
-                    pass
-            except Exception as e:
-                log(f"[brighton] Failed to get snow data: {e}")
-
-        log(f"[brighton] Done. Snow: {snow_24hr}, Raw report: {len(raw_report_text)} chars")
+        log(f"[brighton] Done. Snow: {snow_24hr}")
         return {
             "snow_24hr": snow_24hr,
-            "raw_report_text": raw_report_text,
             "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["brighton"]],
         }
 
     except Exception as e:
         log(f"[brighton] Scraper error: {e}")
-        return {"snow_24hr": 0.0, "terrain": [], "raw_report_text": ""}
+        return {"snow_24hr": 0.0, "terrain": []}
 
 
-def scrape_snowbasin(terrain_only=False):
+def scrape_snowbasin():
     """Snowbasin: server-rendered HTML tables, no Playwright needed."""
     try:
         log("[snowbasin] Loading page...")
@@ -296,41 +216,28 @@ def scrape_snowbasin(terrain_only=False):
                         else:
                             terrain_results[name] = "closed"
 
-        snow_24hr = None if terrain_only else 0.0
-        raw_report_text = ""
+        page_text = soup.get_text()
+        snow_24hr = 0.0
+        m = re.search(r"24[\s\-]*(?:Hour|Hr|Hrs?)[\s\-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", page_text, re.IGNORECASE)
+        if m:
+            snow_24hr = float(m.group(1))
+        else:
+            m2 = re.search(r"(?:New|Fresh)\s+Snow[:\s]*([\d.]+)", page_text, re.IGNORECASE)
+            if m2:
+                snow_24hr = float(m2.group(1))
 
-        if not terrain_only:
-            page_text = soup.get_text()
-            # Snowbasin format: number on its own line, then "24 hours" label below
-            # e.g. '2\u201d\n\n24 hours' — number BEFORE label, curly quote U+201D
-            m = re.search(r"(\d+(?:\.\d+)?)[\"″\u201c\u201d]?\s+24\s*(?:hours?|hrs?)", page_text, re.IGNORECASE)
-            if m:
-                snow_24hr = float(m.group(1))
-            else:
-                # Fallback: label before number (older format)
-                m2 = re.search(r"24[\s\-]*(?:Hours?|Hrs?)[\s\-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", page_text, re.IGNORECASE)
-                if m2:
-                    snow_24hr = float(m2.group(1))
-                else:
-                    m3 = re.search(r"(?:New|Fresh)\s+Snow[:\s]*([\d.]+)", page_text, re.IGNORECASE)
-                    if m3:
-                        snow_24hr = float(m3.group(1))
-
-            raw_report_text = page_text[:3000]
-
-        log(f"[snowbasin] Done. Terrain: {terrain_results}, Snow: {snow_24hr}, Raw report: {len(raw_report_text)} chars")
+        log(f"[snowbasin] Done. Terrain: {terrain_results}, Snow: {snow_24hr}")
         return {
             "snow_24hr": snow_24hr,
-            "raw_report_text": raw_report_text,
             "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["snowbasin"]],
         }
 
     except Exception as e:
         log(f"[snowbasin] Scraper error: {e}")
-        return {"snow_24hr": 0.0, "terrain": [], "raw_report_text": ""}
+        return {"snow_24hr": 0.0, "terrain": []}
 
 
-def scrape_solitude(page, terrain_only=False):
+def scrape_solitude(page):
     """Solitude: JS-rendered Alterra/Ikon platform."""
     try:
         url = "https://www.solitudemountain.com/mountain-and-village/conditions-and-maps"
@@ -338,7 +245,7 @@ def scrape_solitude(page, terrain_only=False):
         terrain_results = {t: "closed" for t in TRACKED["solitude"]}
 
         log("[solitude] Loading page...")
-        page.goto(url, timeout=30000, wait_until="domcontentloaded")
+        page.goto(url, timeout=60000)
         try:
             page.wait_for_selector("text=Lifts", timeout=20000)
         except Exception:
@@ -346,7 +253,7 @@ def scrape_solitude(page, terrain_only=False):
         page.wait_for_timeout(5000)
 
         content = page.content()
-        text = page.evaluate("() => document.body.innerText")
+        text = page.inner_text("body")
 
         soup = BeautifulSoup(content, "html.parser")
 
@@ -378,231 +285,59 @@ def scrape_solitude(page, terrain_only=False):
                     if "open" in after:
                         terrain_results[name] = "open"
 
-        snow_24hr = None if terrain_only else 0.0
-        raw_report_text = ""
-
-        if not terrain_only:
-            m = re.search(r"24[\s\-]*(?:Hours?|Hrs?)[\s\-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", text, re.IGNORECASE)
-            if m:
-                snow_24hr = float(m.group(1))
+        snow_24hr = 0.0
+        m = re.search(r"24[\s\-]*(?:Hour|Hr|Hrs?)[\s\-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", text, re.IGNORECASE)
+        if m:
+            snow_24hr = float(m.group(1))
+        else:
+            m2 = re.search(r"(?:New|Fresh)\s+Snow[:\s]*([\d.]+)", text, re.IGNORECASE)
+            if m2:
+                snow_24hr = float(m2.group(1))
             else:
-                m2 = re.search(r"(?:New|Fresh)\s+Snow[:\s]*([\d.]+)", text, re.IGNORECASE)
-                if m2:
-                    snow_24hr = float(m2.group(1))
-                else:
-                    m3 = re.search(r"([\d.]+)[\"″\u201c\u201d\s]*(?:in)?\s*(?:new|last|24)", text, re.IGNORECASE)
-                    if m3:
-                        snow_24hr = float(m3.group(1))
+                m3 = re.search(r"([\d.]+)[\"″\s]*(?:in)?\s*(?:new|last|24)", text, re.IGNORECASE)
+                if m3:
+                    snow_24hr = float(m3.group(1))
 
-            raw_report_text = text[:3000]
-
-        log(f"[solitude] Done. Terrain: {terrain_results}, Snow: {snow_24hr}, Raw report: {len(raw_report_text)} chars")
+        log(f"[solitude] Done. Terrain: {terrain_results}, Snow: {snow_24hr}")
         return {
             "snow_24hr": snow_24hr,
-            "raw_report_text": raw_report_text,
             "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["solitude"]],
         }
 
     except Exception as e:
         log(f"[solitude] Scraper error: {e}")
-        return {"snow_24hr": 0.0, "terrain": [], "raw_report_text": ""}
+        return {"snow_24hr": 0.0, "terrain": []}
 
 
-def scrape_powdermountain(page, terrain_only=False):
-    """Powder Mountain: JS-rendered, track James Peak hike-to terrain."""
-    try:
-        url = "https://powdermountain.com/conditions"
-        terrain_results = {t: "closed" for t in TRACKED["powdermountain"]}
-
-        log("[powdermountain] Loading page...")
-        page.goto(url, timeout=30000, wait_until="domcontentloaded")
-        try:
-            page.wait_for_selector("text=Conditions", timeout=15000)
-        except Exception:
-            pass
-        page.wait_for_timeout(5000)
-
-        text = page.evaluate("() => document.body.innerText")
-
-        # Strategy 1: Search full page text line by line
-        for line in text.splitlines():
-            line_lower = line.strip().lower()
-            if "james peak" in line_lower:
-                if "open" in line_lower:
-                    terrain_results["James Peak"] = "open"
-                elif "closed" in line_lower:
-                    terrain_results["James Peak"] = "closed"
-
-        # Strategy 2: DOM walk (same pattern as Brighton)
-        trail_data = page.evaluate("""
-            () => {
-                const results = {};
-                const targets = ['James Peak'];
-                const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-                while (walker.nextNode()) {
-                    const text = walker.currentNode.textContent.trim();
-                    for (const target of targets) {
-                        if (text.includes(target)) {
-                            let el = walker.currentNode.parentElement;
-                            for (let i = 0; i < 10; i++) {
-                                el = el.parentElement;
-                                if (!el) break;
-                                const imgs = el.querySelectorAll('img');
-                                for (const img of imgs) {
-                                    const alt = (img.alt || '').toLowerCase();
-                                    if (alt === 'open' || alt === 'closed') {
-                                        results[target] = alt;
-                                        break;
-                                    }
-                                }
-                                if (results[target]) break;
-                                const elText = (el.textContent || '').toLowerCase();
-                                if (elText.length < 200) {
-                                    if (/\\bopen\\b/.test(elText)) {
-                                        results[target] = 'open';
-                                        break;
-                                    } else if (/\\bclosed\\b/.test(elText)) {
-                                        results[target] = 'closed';
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                return results;
-            }
-        """)
-
-        for name, status in trail_data.items():
-            if name in terrain_results:
-                terrain_results[name] = normalize_status(status)
-
-        log(f"[powdermountain] Terrain done: {terrain_results}")
-
-        snow_24hr = None if terrain_only else 0.0
-        raw_report_text = ""
-
-        if not terrain_only:
-            try:
-                raw_report_text = text[:3000]
-                m = re.search(r"24[\s\-]*(?:Hours?|Hrs?)[\s\-]*(?:Snow(?:fall)?)?[:\s]*([\d.]+)", text, re.IGNORECASE)
-                if m:
-                    snow_24hr = float(m.group(1))
-                else:
-                    m2 = re.search(r"([\d.]+)[\"″\u201c\u201d\s]*(?:in)?[\s]*(?:new|overnight|24)", text, re.IGNORECASE)
-                    if m2:
-                        snow_24hr = float(m2.group(1))
-                    else:
-                        m3 = re.search(r"(?:New|Fresh)\s+Snow[:\s]*([\d.]+)", text, re.IGNORECASE)
-                        if m3:
-                            snow_24hr = float(m3.group(1))
-            except Exception as e:
-                log(f"[powdermountain] Failed to get snow data: {e}")
-
-        log(f"[powdermountain] Done. Snow: {snow_24hr}, Raw report: {len(raw_report_text)} chars")
-        return {
-            "snow_24hr": snow_24hr,
-            "raw_report_text": raw_report_text,
-            "terrain": [{"name": n, "status": terrain_results[n]} for n in TRACKED["powdermountain"]],
-        }
-
-    except Exception as e:
-        log(f"[powdermountain] Scraper error: {e}")
-        return {"snow_24hr": 0.0, "terrain": [], "raw_report_text": ""}
-
-
-def scrape_all(terrain_only=False):
-    """Scrape all resorts with per-resort isolation.
-
-    Each resort gets its own browser page. If one resort crashes the browser,
-    we relaunch before continuing to the next resort.
-
-    Args:
-        terrain_only: If True, only scrape terrain open/closed status.
-                     Skips snow data and raw report text extraction.
-                     Returns snow_24hr=None (preserves existing DB values).
-    """
+def scrape_all():
+    """Scrape all resorts using ONE shared Chromium browser to save memory."""
     from playwright.sync_api import sync_playwright
 
     results = {}
-    mode = "terrain-only" if terrain_only else "full"
-    log(f"[scraper] Starting {mode} scrape...")
 
     # Snowbasin doesn't need Playwright — do it first
-    try:
-        results["snowbasin"] = scrape_snowbasin(terrain_only=terrain_only)
-    except Exception as e:
-        log(f"[scraper] snowbasin top-level crash: {e}")
-        results["snowbasin"] = {"snow_24hr": 0.0, "terrain": [], "raw_report_text": ""}
+    results["snowbasin"] = scrape_snowbasin()
 
-    # Each Playwright resort gets its own page for isolation.
-    # If one resort crashes the browser, we relaunch before continuing.
-    pw_resorts = [
-        ("snowbird", scrape_snowbird),
-        ("brighton", scrape_brighton),
-        ("solitude", scrape_solitude),
-        ("powdermountain", scrape_powdermountain),
-    ]
-
+    # Launch ONE browser for all Playwright resorts
     log("[scraper] Launching Chromium...")
-    pw = None
-    browser = None
     try:
-        pw = sync_playwright().start()
-        browser = pw.chromium.launch(headless=True, args=CHROMIUM_ARGS)
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True, args=CHROMIUM_ARGS)
+            page = browser.new_page(user_agent=HEADERS["User-Agent"])
 
-        for resort_name, scrape_fn in pw_resorts:
-            if browser is None:
-                log(f"[scraper] No browser available, skipping {resort_name}")
-                results[resort_name] = {"snow_24hr": 0.0, "terrain": [], "raw_report_text": ""}
-                continue
+            # Scrape each resort one at a time, reusing the same page
+            results["snowbird"] = scrape_snowbird(page)
+            results["brighton"] = scrape_brighton(page)
+            results["solitude"] = scrape_solitude(page)
 
-            page = None
-            try:
-                page = browser.new_page(user_agent=HEADERS["User-Agent"])
-                page.set_default_timeout(30000)  # 30s max per Playwright operation
-                results[resort_name] = scrape_fn(page, terrain_only=terrain_only)
-            except Exception as e:
-                log(f"[scraper] {resort_name} crashed browser: {e}")
-                results[resort_name] = {"snow_24hr": 0.0, "terrain": [], "raw_report_text": ""}
-                # Try to recover: close broken browser and relaunch
-                try:
-                    browser.close()
-                except Exception:
-                    pass
-                browser = None
-                try:
-                    browser = pw.chromium.launch(headless=True, args=CHROMIUM_ARGS)
-                    log(f"[scraper] Browser relaunched after {resort_name} crash")
-                except Exception as e2:
-                    log(f"[scraper] Failed to relaunch browser: {e2}")
-            finally:
-                if page:
-                    try:
-                        page.close()
-                    except Exception:
-                        pass
-
-    except Exception as e:
-        log(f"[scraper] Chromium startup error: {e}")
-    finally:
-        if browser:
-            try:
-                browser.close()
-            except Exception:
-                pass
-        if pw:
-            try:
-                pw.stop()
-            except Exception:
-                pass
+            browser.close()
         log("[scraper] Chromium closed.")
-
-    # Fill in any missing resorts with empty data
-    for resort in ["snowbird", "brighton", "solitude", "powdermountain"]:
-        if resort not in results:
-            results[resort] = {"snow_24hr": 0.0, "terrain": [], "raw_report_text": ""}
+    except Exception as e:
+        log(f"[scraper] Chromium error: {e}")
+        # Fill in missing resorts with empty data
+        for resort in ["snowbird", "brighton", "solitude"]:
+            if resort not in results:
+                results[resort] = {"snow_24hr": 0.0, "terrain": []}
 
     return results
 

@@ -27,7 +27,7 @@ def run_scrape():
             status = t["status"]
             print(f"  {resort} | {name} | {status}")
             save_snapshot(resort, name, status, scraped_at)
-            update_daily_summary(resort, name, date_str, status, snow, scraped_at)
+            update_daily_summary(resort, name, date_str, status, snow)
 
     print(f"[{scraped_at}] Scrape complete.\n")
 
@@ -39,11 +39,11 @@ def main():
     run_scrape()
 
     scheduler = BackgroundScheduler(timezone=MTN_TZ)
-    trigger = CronTrigger(hour="7-16", minute="0,15,30,45", timezone=MTN_TZ)
+    trigger = CronTrigger(hour="9-16", minute=0, timezone=MTN_TZ)
     scheduler.add_job(run_scrape, trigger)
     scheduler.start()
 
-    print("Scheduler started. Scraping every 15min, 7am-4pm Mountain Time. Press Ctrl+C to exit.")
+    print("Scheduler started. Scraping hourly 9am-4pm Mountain Time. Press Ctrl+C to exit.")
 
     try:
         while True:

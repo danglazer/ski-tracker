@@ -4,4 +4,3 @@ playwright
 flask
 apscheduler
 pytz
-anthropic

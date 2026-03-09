@@ -41,10 +41,10 @@ def start_scheduler():
     time.sleep(3)
 
     scheduler = BackgroundScheduler(timezone=MTN_TZ)
-    trigger = CronTrigger(hour="9-16", minute=0, timezone=MTN_TZ)
+    trigger = CronTrigger(hour="8-16", minute="*/15", timezone=MTN_TZ)
     scheduler.add_job(run_scrape, trigger)
     scheduler.start()
-    print("Scheduler started. Scraping hourly 9am-4pm Mountain Time.")
+    print("Scheduler started. Scraping every 15 min, 8am-4pm Mountain Time.")
 
     print("Running initial scrape in background...")
     threading.Thread(target=run_scrape, daemon=True).start()

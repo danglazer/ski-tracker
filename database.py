@@ -40,6 +40,18 @@ def init_db():
             UNIQUE(resort, terrain_name, date)
         )
     """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS avalanche_forecasts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            region TEXT NOT NULL,
+            date TEXT NOT NULL,
+            overall_danger TEXT,
+            bottom_line TEXT,
+            forecast_json TEXT,
+            fetched_at TEXT NOT NULL,
+            UNIQUE(region, date)
+        )
+    """)
     conn.commit()
     conn.close()
 
@@ -202,6 +214,33 @@ def get_resort_snow_history(resort):
     rows = c.fetchall()
     conn.close()
     return {row["date"]: row["snowfall_24hr"] for row in rows}
+
+
+def save_avalanche_forecast(region, date_str, overall_danger, bottom_line, forecast_json, fetched_at):
+    conn = _connect()
+    conn.execute(
+        """INSERT OR REPLACE INTO avalanche_forecasts
+           (region, date, overall_danger, bottom_line, forecast_json, fetched_at)
+           VALUES (?, ?, ?, ?, ?, ?)""",
+        (region, date_str, overall_danger, bottom_line, forecast_json, fetched_at),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_avalanche_forecast(region, date_str):
+    conn = _connect()
+    c = conn.cursor()
+    c.execute("SELECT * FROM avalanche_forecasts WHERE region = ? AND date = ?", (region, date_str))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        return None
+    return {
+        "overall_danger": row["overall_danger"],
+        "bottom_line": row["bottom_line"],
+        "forecast_json": row["forecast_json"],
+    }
 
 
 def get_terrain_history(resort, terrain_name):

@@ -4,8 +4,9 @@ from datetime import datetime
 import pytz
 from flask import Flask, jsonify, render_template, request
 
-from database import init_db, get_daily_view, get_all_dates, get_full_history, get_terrain_history, get_resort_snow_history, save_snapshot, update_daily_summary
+from database import init_db, get_daily_view, get_all_dates, get_full_history, get_terrain_history, get_resort_snow_history, get_avalanche_forecast, save_snapshot, update_daily_summary
 from scraper import scrape_all
+from avalanche import fetch_avalanche_forecast
 
 app = Flask(__name__)
 MTN_TZ = pytz.timezone("America/Denver")
@@ -76,6 +77,15 @@ def api_snow_calendar():
     return jsonify({"resort": resort, "days": days})
 
 
+@app.route("/api/avalanche")
+def api_avalanche():
+    date_str = request.args.get("date")
+    if not date_str:
+        date_str = datetime.now(MTN_TZ).strftime("%Y-%m-%d")
+    forecast = get_avalanche_forecast("salt-lake", date_str)
+    return jsonify(forecast or {})
+
+
 @app.route("/api/scrape", methods=["POST"])
 def api_scrape():
     if not scrape_lock.acquire(blocking=False):
@@ -92,6 +102,10 @@ def api_scrape():
                 for t in data.get("terrain", []):
                     save_snapshot(resort, t["name"], t["status"], scraped_at)
                     update_daily_summary(resort, t["name"], date_str, t["status"], snow)
+            try:
+                fetch_avalanche_forecast()
+            except Exception as e:
+                print(f"[scrape] Avalanche fetch error: {e}", flush=True)
         finally:
             scrape_lock.release()
 

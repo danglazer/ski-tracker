@@ -1,14 +1,18 @@
+import threading
 from datetime import datetime
 
 import pytz
 from flask import Flask, jsonify, render_template, request
 
-from database import init_db, get_daily_view, get_all_dates, get_full_history, get_terrain_history, get_resort_snow_history
+from database import init_db, get_daily_view, get_all_dates, get_full_history, get_terrain_history, get_resort_snow_history, save_snapshot, update_daily_summary
+from scraper import scrape_all
 
 app = Flask(__name__)
 MTN_TZ = pytz.timezone("America/Denver")
 
 init_db()
+
+scrape_lock = threading.Lock()
 
 
 @app.route("/")
@@ -70,6 +74,34 @@ def api_snow_calendar():
         return jsonify({"error": "resort required"}), 400
     days = get_resort_snow_history(resort)
     return jsonify({"resort": resort, "days": days})
+
+
+@app.route("/api/scrape", methods=["POST"])
+def api_scrape():
+    if not scrape_lock.acquire(blocking=False):
+        return jsonify({"status": "already_running"}), 409
+
+    def _run():
+        try:
+            now = datetime.now(MTN_TZ)
+            date_str = now.strftime("%Y-%m-%d")
+            scraped_at = now.isoformat()
+            results = scrape_all()
+            for resort, data in results.items():
+                snow = data.get("snow_24hr", 0.0)
+                for t in data.get("terrain", []):
+                    save_snapshot(resort, t["name"], t["status"], scraped_at)
+                    update_daily_summary(resort, t["name"], date_str, t["status"], snow)
+        finally:
+            scrape_lock.release()
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"status": "started"}), 202
+
+
+@app.route("/api/scrape-status")
+def api_scrape_status():
+    return jsonify({"running": scrape_lock.locked()})
 
 
 if __name__ == "__main__":

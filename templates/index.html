@@ -708,6 +708,7 @@
   <label for="date-picker">Date:</label>
   <input type="date" id="date-picker">
   <button class="btn-today" onclick="setToday()">Today</button>
+  <button class="btn-today" id="refresh-btn" onclick="triggerScrape()">Refresh</button>
 </div>
 
 <div class="grid" id="resort-grid">
@@ -722,7 +723,7 @@
 </section>
 
 <footer>
-  Updated hourly 9am - 4pm Mountain Time &nbsp;&middot;&nbsp; Click terrain names or snow totals for calendar views
+  Updated every 15 min, 8am - 4pm Mountain Time &nbsp;&middot;&nbsp; Click terrain names or snow totals for calendar views
 </footer>
 
 <!-- Calendar Modal -->
@@ -785,6 +786,59 @@
     const today = formatDate(new Date());
     document.getElementById('date-picker').value = today;
     loadData(today);
+  }
+
+  function triggerScrape() {
+    const btn = document.getElementById('refresh-btn');
+    btn.disabled = true;
+    btn.textContent = 'Scraping...';
+
+    fetch('/api/scrape', { method: 'POST' })
+      .then(r => {
+        if (r.status === 409) {
+          btn.textContent = 'Scrape in progress...';
+        }
+        pollScrapeStatus();
+      })
+      .catch(() => {
+        btn.disabled = false;
+        btn.textContent = 'Refresh';
+      });
+  }
+
+  function pollScrapeStatus() {
+    const btn = document.getElementById('refresh-btn');
+    const poll = setInterval(() => {
+      fetch('/api/scrape-status')
+        .then(r => r.json())
+        .then(data => {
+          if (!data.running) {
+            clearInterval(poll);
+            btn.disabled = false;
+            btn.textContent = 'Refresh';
+            setToday();
+          }
+        })
+        .catch(() => {
+          clearInterval(poll);
+          btn.disabled = false;
+          btn.textContent = 'Refresh';
+        });
+    }, 3000);
+  }
+
+  function checkScrapeOnLoad() {
+    fetch('/api/scrape-status')
+      .then(r => r.json())
+      .then(data => {
+        if (data.running) {
+          const btn = document.getElementById('refresh-btn');
+          btn.disabled = true;
+          btn.textContent = 'Scraping...';
+          pollScrapeStatus();
+        }
+      })
+      .catch(() => {});
   }
 
   // ─── Daily Card View ───
@@ -1182,6 +1236,7 @@
 
   loadData(today);
   loadHistory();
+  checkScrapeOnLoad();
 </script>
 
 </body>

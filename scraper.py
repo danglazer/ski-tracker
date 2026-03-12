@@ -97,7 +97,7 @@ def scrape_snowbird(page):
             log("[snowbird] Loading conditions page...")
             page.goto(conditions_url, timeout=60000)
             page.wait_for_timeout(3000)
-            text = page.inner_text("body")
+            text = page.evaluate("() => document.body.innerText")
             m = re.search(r"24[\s\-]*(?:Hour|Hr)[\s\-]*Snow\s*([\d.]+)", text, re.IGNORECASE)
             if m:
                 snow_24hr = float(m.group(1))
@@ -168,7 +168,7 @@ def scrape_brighton(page):
 
         snow_24hr = 0.0
         try:
-            text = page.inner_text("body")
+            text = page.evaluate("() => document.body.innerText")
             m = re.search(r"([\d.]+)[\"″\s]*Snow\s*24\s*Hrs", text, re.IGNORECASE)
             if m:
                 snow_24hr = float(m.group(1))
@@ -254,7 +254,7 @@ def scrape_solitude(page):
         page.wait_for_timeout(5000)
 
         content = page.content()
-        text = page.inner_text("body")
+        text = page.evaluate("() => document.body.innerText")
 
         soup = BeautifulSoup(content, "html.parser")
 
@@ -433,6 +433,7 @@ def scrape_all():
 
             for resort_name, scrape_fn in pw_resorts:
                 page = browser.new_page(user_agent=HEADERS["User-Agent"])
+                page.set_default_timeout(30000)  # 30s max per Playwright operation
                 try:
                     results[resort_name] = scrape_fn(page)
                 except Exception as e:

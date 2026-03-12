@@ -8,8 +8,9 @@ import pytz
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 
-from database import init_db, save_snapshot, update_daily_summary
+from database import init_db, save_snapshot, update_daily_summary, get_avalanche_forecast
 from scraper import scrape_all
+from avalanche import fetch_avalanche_forecast
 from app import app
 
 MTN_TZ = pytz.timezone("America/Denver")
@@ -36,17 +37,45 @@ def run_scrape():
     print(f"[{scraped_at}] Scrape complete.\n")
 
 
+def run_avalanche():
+    """Fetch UAC avalanche forecast (skip if already have today's with image AND correct date)."""
+    import json
+    today = datetime.now(MTN_TZ).strftime("%Y-%m-%d")
+    existing = get_avalanche_forecast("salt-lake", today)
+    if existing:
+        try:
+            fj = json.loads(existing.get("forecast_json", "{}"))
+            issued_date = fj.get("issued_date", "")
+            if fj.get("danger_rose_image") and issued_date == today:
+                print(f"[avalanche] Today's forecast (issued {issued_date}) with rose image exists, skipping")
+                return
+        except Exception:
+            pass
+    try:
+        fetch_avalanche_forecast()
+    except Exception as e:
+        print(f"[avalanche] Scheduler error: {e}")
+
+
 def start_scheduler():
     # Wait for Flask to bind before starting scraper
     time.sleep(3)
 
     scheduler = BackgroundScheduler(timezone=MTN_TZ)
-    trigger = CronTrigger(hour="8-16", minute="*/15", timezone=MTN_TZ)
-    scheduler.add_job(run_scrape, trigger)
-    scheduler.start()
-    print("Scheduler started. Scraping every 15 min, 8am-4pm Mountain Time.")
+    terrain_trigger = CronTrigger(hour="8-16", minute="*/15", timezone=MTN_TZ)
+    scheduler.add_job(run_scrape, terrain_trigger)
 
-    print("Running initial scrape in background...")
+    # Avalanche: every 15min 5am-9am until found, then once at noon
+    scheduler.add_job(run_avalanche, CronTrigger(hour="5-9", minute="0,15,30,45", timezone=MTN_TZ))
+    scheduler.add_job(run_avalanche, CronTrigger(hour=12, minute=0, timezone=MTN_TZ))
+
+    scheduler.start()
+    print("Scheduler started:")
+    print("  - Terrain scrape: every 15 min, 8am-4pm Mountain Time")
+    print("  - Avalanche: every 15min 5-9am MT + noon")
+
+    print("Running initial fetches in background...")
+    threading.Thread(target=run_avalanche, daemon=True).start()
     threading.Thread(target=run_scrape, daemon=True).start()
 
 
